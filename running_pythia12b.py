@@ -2,14 +2,14 @@ from transformers import GPTNeoXForCausalLM, AutoTokenizer
 import torch
 
 model_name = "EleutherAI/pythia-12b"
-
 prompt = "Hello, I am"
+device = "cuda:0"
 
 
 model = GPTNeoXForCausalLM.from_pretrained(
     model_name,
     torch_dtype=torch.float16,       
-    device_map={"": "cuda:2"},       
+    device_map={"": device},
     cache_dir=f"./{model_name.split('/')[-1]}",
 )
 
