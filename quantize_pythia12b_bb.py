@@ -22,7 +22,8 @@ model = GPTNeoXForCausalLM.from_pretrained(
 
 # 3) (Optional) save the quantized model for faster reload next time
 model.save_pretrained("pythia-12b-4bit-bbq")
-
+tokenizer = AutoTokenizer.from_pretrained("EleutherAI/pythia-12b")
+tokenizer.save_pretrained("pythia-12b-4bit-bbq")
 # 4) Load tokenizer (no change)
 tokenizer = AutoTokenizer.from_pretrained(model_name, cache_dir=cache_dir)
 
