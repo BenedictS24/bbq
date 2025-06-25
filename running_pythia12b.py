@@ -19,7 +19,7 @@ tokenizer = AutoTokenizer.from_pretrained(
 )
 
 
-inputs = tokenizer(prompt, return_tensors="pt").to("cuda:2")
+inputs = tokenizer(prompt, return_tensors="pt").to(device)
 
 tokens = model.generate(**inputs, max_new_tokens=50)
 output = tokenizer.decode(tokens[0], skip_special_tokens=True)
