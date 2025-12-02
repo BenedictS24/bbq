@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 
 
-use_quantized_model = True
+use_quantized_model = False 
 device = "cuda:0"
 k = 32
 
@@ -16,7 +16,7 @@ k = 32
 if use_quantized_model:
     model_name = "./pythia-12b-4bit-bbq"
 else:
-    model_name = "./pythia-12b"
+    model_name = "EleutherAI/pythia-12b"
 
 
 test = [
@@ -93,7 +93,7 @@ print(f"k = {k}")
 
 model = GPTNeoXForCausalLM.from_pretrained(
     model_name,
-    torch_dtype=torch.float16,        
+    dtype=torch.float16,        
     device_map={"": device},
     cache_dir=f"./{model_name.split('/')[-1]}",
 )
