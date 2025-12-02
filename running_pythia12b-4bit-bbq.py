@@ -2,7 +2,7 @@ from transformers import GPTNeoXForCausalLM, AutoTokenizer
 import torch
 
 model_name = "./pythia-12b-4bit-bbq"
-prompt = "Hello, I am"
+prompt = "Hello, my name is"
 device = "cuda:0"
 
 

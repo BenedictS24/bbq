@@ -2,7 +2,7 @@ from transformers import GPTNeoXForCausalLM, AutoTokenizer
 import torch
 
 model_name = "EleutherAI/pythia-12b"
-prompt = "Hello, I am"
+prompt = "Hello, my name is"
 device = "cuda:0"
 
 
