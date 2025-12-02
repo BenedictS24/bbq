@@ -1,7 +1,14 @@
 from transformers import GPTNeoXForCausalLM, AutoTokenizer
 import torch
 
-model_name = "./pythia-12b-4bit-bbq"
+
+use_quantized_model = True
+
+if use_quantized_model:
+    model_name = "./pythia-12b-4bit-bbq"
+else:
+    model_name = "./pythia-12b"
+
 prompt = "Hello, my name is"
 device = "cuda:0"
 
@@ -18,9 +25,9 @@ tokenizer = AutoTokenizer.from_pretrained(
     cache_dir=f"./{model_name.split('/')[-1]}",
 )
 
+print(f"Using model: {model_name}")
 
 inputs = tokenizer(prompt, return_tensors="pt").to(device)
-
 tokens = model.generate(**inputs, max_new_tokens=300)
 output = tokenizer.decode(tokens[0], skip_special_tokens=True)
 
