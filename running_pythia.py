@@ -28,7 +28,8 @@ tokenizer = AutoTokenizer.from_pretrained(
 print(f"Using model: {model_name}")
 
 inputs = tokenizer(prompt, return_tensors="pt").to(device)
-tokens = model.generate(**inputs, max_new_tokens=100)
+with torch.no_grad():
+    tokens = model.generate(**inputs, max_new_tokens=100)
 output = tokenizer.decode(tokens[0], skip_special_tokens=True)
 
 print(output)

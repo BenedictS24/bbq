@@ -1,17 +1,15 @@
 from transformers import GPTNeoXForCausalLM, AutoTokenizer
-from datasets import load_dataset
 import torch
 import json
 import glob
 import os
-from tqdm import tqdm
+from tqdm import main, tqdm
 
 
-# Configuration
+
 use_quantized_model = True
 device = "cuda:0"
 k = 32
-number_of_tests = 100 
 
 
 
@@ -20,8 +18,78 @@ if use_quantized_model:
 else:
     model_name = "EleutherAI/pythia-12b"
 
+
+test = [
+  18728,
+  27,
+  2703,
+  3,
+  1054,
+  26600,
+  2244,
+  568,
+  17,
+  3,
+  13818,
+  2203,
+  27,
+  45435,
+  989,
+  568,
+  18,
+  3,
+  4725,
+  187,
+  50262,
+  29,
+  18728,
+  27,
+  10531,
+  1416,
+  568,
+  13982,
+  3,
+  1511,
+  568,
+  18728,
+  27,
+  2703,
+  3,
+  1054,
+  26600,
+  2244,
+  568,
+  17,
+  3,
+  13818,
+  2203,
+  27,
+  45435,
+  989,
+  568,
+  19,
+  3,
+  4725,
+  187,
+  50264,
+  870,
+  18728,
+  27,
+  21934,
+  31,
+  187,
+  50264,
+  29,
+  18728,
+  27,
+  15810,
+  1416
+]
+
+
 print(f"Using model: {model_name}")
 print(f"k = {k}")
+
 
 model = GPTNeoXForCausalLM.from_pretrained(
     model_name,
@@ -35,20 +103,6 @@ tokenizer = AutoTokenizer.from_pretrained(
     cache_dir=f"./{model_name.split('/')[-1]}",
 )
 
-
-
-def load_eval_dataset():
-    dataset = load_dataset(
-        "EleutherAI/pythia-memorized-evals",
-        split="duped.12b",
-        cache_dir="/mnt/storage2/student_data/bstahl/bbq/pythia-12b_memorized-evals"
-        )
-
-    print(f"Loaded evaluation dataset with {len(dataset)} examples.")
-    return dataset
-
-
-
 def evaluate_output(output_tokens, expected_tokens):
     correct = 0
     total = len(expected_tokens)
@@ -59,6 +113,7 @@ def evaluate_output(output_tokens, expected_tokens):
     for out_token, exp_token in zip(output_tokens, expected_tokens):
         if out_token == exp_token:
             correct += 1
+    
     
     accuracy = correct / total
     return accuracy
@@ -90,18 +145,8 @@ def test_memorization(test_sequence, k):
 
 
 def main():
-    dataset = load_eval_dataset()
-    dataset_subset = dataset.select(range(number_of_tests))
-    accuracies = []
-    for sample in tqdm(dataset_subset):
-        tokens = sample["tokens"]
-        accuracy = test_memorization(tokens, k)
-        accuracies.append(accuracy)
-
-    overall_accuracy = sum(accuracies) / len(accuracies)
-    print("="*50)
-    print(f"Overall memorization accuracy for k={k} over {number_of_tests} tests: {overall_accuracy}")
-    print("="*50)
+    accuracy = test_memorization(test, k)
+    print(f"Memorization accuracy for k={k}: {accuracy}")
 
 
 
