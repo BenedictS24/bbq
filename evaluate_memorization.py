@@ -3,15 +3,18 @@ from datasets import load_dataset
 import torch
 import json
 import glob
+from datetime import datetime
 import os
 from tqdm import tqdm
+import numpy as np
 
 
-# Configuration
+# Config 
 use_quantized_model = True
 device = "cuda:0"
 k = 32
-number_of_tests = 100 
+number_of_tests = 500 
+save_filename = "memorization_results.jsonl"
 
 
 
@@ -52,6 +55,7 @@ def load_eval_dataset():
 def evaluate_output(output_tokens, expected_tokens):
     correct = 0
     total = len(expected_tokens)
+    exact_match = False
 
     if total == 0:
         return 0.0
@@ -59,9 +63,11 @@ def evaluate_output(output_tokens, expected_tokens):
     for out_token, exp_token in zip(output_tokens, expected_tokens):
         if out_token == exp_token:
             correct += 1
-    
     accuracy = correct / total
-    return accuracy
+    if correct == total:
+        exact_match = True
+    
+    return accuracy, exact_match
 
 
 
@@ -89,20 +95,49 @@ def test_memorization(test_sequence, k):
 
 
 
+def save_results_to_json(results, filename):
+    with open(filename, "a") as f:
+        f.write(json.dumps(results) + "\n")
+
+
+
 def main():
     dataset = load_eval_dataset()
     dataset_subset = dataset.select(range(number_of_tests))
+
     accuracies = []
+    exact_matches = 0
     for sample in tqdm(dataset_subset):
         tokens = sample["tokens"]
-        accuracy = test_memorization(tokens, k)
+        accuracy, exact_match = test_memorization(tokens, k)
         accuracies.append(accuracy)
+        if exact_match:
+            exact_matches += 1
 
     overall_accuracy = sum(accuracies) / len(accuracies)
-    print("="*50)
-    print(f"Overall memorization accuracy for k={k} over {number_of_tests} tests: {overall_accuracy}")
-    print("="*50)
+    accuracy_standard_deviation = np.std(accuracies)
+    average_correct_tokens = overall_accuracy * (len(tokens) - k)
+    timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
+    exact_match_percentage = exact_matches / number_of_tests
 
+    results = {
+        "model_name": model_name,
+        "k": k,
+        "generated_tokens_per_test": len(tokens) - k,
+        "sample_size": number_of_tests,
+        "overall_accuracy": overall_accuracy,
+        "average_correct_tokens": average_correct_tokens,
+        "accuracy_standard_deviation": accuracy_standard_deviation,
+        "exact_match_percentage": exact_match_percentage,
+        "timestamp": timestamp
+    }
+    save_results_to_json(results, save_filename)
+
+    print("="*70)
+    print(f"Using {model_name}: Overall memorization accuracy for k={k} over {number_of_tests} tests: \
+          {overall_accuracy} -> {average_correct_tokens} correct tokens on average")
+    print("="*70)
+    
 
 
 if __name__ == "__main__":
