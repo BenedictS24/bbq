@@ -12,7 +12,7 @@ import numpy as np
 # Config 
 use_quantized_model = True
 device = "cuda:0"
-k = 32
+k = 16
 number_of_tests = 500 
 save_filename = "memorization_results.jsonl"
 
