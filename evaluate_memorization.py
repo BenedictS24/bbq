@@ -147,10 +147,10 @@ def main():
         "k": k,
         "generated_tokens_per_test": len(tokens) - k,
         "sample_size": number_of_tests,
-        "overall_accuracy": overall_accuracy,
-        "average_correct_tokens": average_correct_tokens,
-        "accuracy_standard_deviation": accuracy_standard_deviation,
-        "exact_match_percentage": exact_match_percentage,
+        "overall_accuracy": round(overall_accuracy, 3),
+        "average_correct_tokens": round(average_correct_tokens, 3),
+        "accuracy_standard_deviation": round(accuracy_standard_deviation, 3),
+        "exact_match_percentage": round(exact_match_percentage, 3),
         "timestamp": timestamp
     }
     if save_results_to_file:
@@ -158,7 +158,7 @@ def main():
 
     print("="*70)
     print(f"Using {model_name}: Overall memorization accuracy for k={k} over {number_of_tests} tests: \
-          {overall_accuracy} -> {average_correct_tokens} correct tokens on average")
+          {overall_accuracy:.3f} -> {average_correct_tokens:.3f} correct tokens on average")
     print("="*70)
     
 
