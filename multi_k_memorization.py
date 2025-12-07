@@ -10,7 +10,7 @@ import numpy as np
 
 
 # Config 
-use_quantized_model = True
+use_quantized_model = False
 device = "cuda:0"
 eval_token_count = 16
 k_step_size = 2
@@ -18,7 +18,7 @@ start_k = 16
 end_k = 32
 number_of_tests = 1000 
 save_results_to_file = True
-save_filename = "memorization_results.jsonl"
+save_filename = "k16-32_memorization_results.jsonl"
 test_sequence_length = 64
 
 
@@ -111,7 +111,7 @@ def main():
 
     accuracies = []
     exact_matches = 0
-    for sample in tqdm(dataset_subset):
+    for sample in tqdm(dataset_subset, leave=False):
         tokens = sample["tokens"]
         accuracy, exact_match = test_memorization(tokens, k, model, tokenizer)
         accuracies.append(accuracy)
@@ -127,7 +127,6 @@ def main():
     results = {
         "model_name": model_name,
         "k": k,
-        "generated_tokens_per_test": len(tokens) - k,
         "sample_size": number_of_tests,
         "overall_accuracy": round(overall_accuracy, 3),
         "average_correct_tokens": round(average_correct_tokens, 3),
@@ -149,5 +148,5 @@ if __name__ == "__main__":
     if (test_sequence_length - eval_token_count) % k_step_size != 0:
         print("Error: (test_sequence_length - eval_token_count) must be divisible by k_step_size")
         exit(1)
-    for k in range(start_k, end_k + 1, k_step_size):
+    for k in tqdm(range(start_k, end_k + 1, k_step_size)):
         main()
