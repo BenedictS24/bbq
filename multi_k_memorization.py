@@ -18,7 +18,7 @@ start_k = 6
 end_k = 46
 number_of_tests = 1000 
 save_results_to_file = True
-save_filename = "./plots/k8-48_memorization_results.jsonl"
+save_filename = "./experiment_data/k8-48_memorization_results.jsonl"
 test_sequence_length = 64
 
 

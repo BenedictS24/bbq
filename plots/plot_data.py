@@ -3,10 +3,11 @@ import numpy as np
 import json
 import math
 
-model = 'EleutherAI/pythia-12b'
+
 x_axis = 'k'
-y_axis = ['overall_accuracy', 'average_correct_tokens', 'exact_match_percentage', 'accuracy_standard_deviation']  # Choose which metric to plot
-file_name = 'k8-48_memorization_results.jsonl'
+y_axis = ['overall_accuracy', 'average_correct_tokens', 'exact_match_percentage', 'accuracy_standard_deviation']
+file_name = '/Users/benedict/UHH/bbq/experiment_data/k8-48_memorization_results.jsonl'
+
 
 def load_data(filename):
     with open(filename, 'r') as f:
