@@ -13,12 +13,12 @@ import numpy as np
 use_quantized_model = False
 device = "cuda:0"
 eval_token_count = 16
-k_step_size = 2
-start_k = 16
-end_k = 32
+k_step_size = 4
+start_k = 8
+end_k = 48
 number_of_tests = 1000 
 save_results_to_file = True
-save_filename = "k16-32_memorization_results.jsonl"
+save_filename = "k8-48_memorization_results.jsonl"
 test_sequence_length = 64
 
 
@@ -148,5 +148,9 @@ if __name__ == "__main__":
     if (test_sequence_length - eval_token_count) % k_step_size != 0:
         print("Error: (test_sequence_length - eval_token_count) must be divisible by k_step_size")
         exit(1)
+    for k in tqdm(range(start_k, end_k + 1, k_step_size)):
+        main()
+
+    use_quantized_model = True
     for k in tqdm(range(start_k, end_k + 1, k_step_size)):
         main()
