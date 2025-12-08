@@ -14,11 +14,11 @@ use_quantized_model = False
 device = "cuda:0"
 eval_token_count = 16
 k_step_size = 4
-start_k = 8
-end_k = 48
+start_k = 6
+end_k = 46
 number_of_tests = 1000 
 save_results_to_file = True
-save_filename = "k8-48_memorization_results.jsonl"
+save_filename = "./plots/k8-48_memorization_results.jsonl"
 test_sequence_length = 64
 
 
