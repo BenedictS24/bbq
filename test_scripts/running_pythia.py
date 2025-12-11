@@ -7,7 +7,7 @@ use_quantized_model = False
 if use_quantized_model:
     model_name = "/home/bstahl/bbq/pythia-12b-4bit-bbq"
 else:
-    model_name = "/home/bstahl/bbq/pythia-12b/models--EleutherAI--pythia-12b/snapshots/bb1e3e710cdf6b524461d543cfb5ba773f0a81b6"
+    model_name = "~/bbq/models/pythia-12b-duped-step143000"
 
 prompt = "Hello, my name is"
 device = "cuda:0"

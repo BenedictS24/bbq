@@ -1,13 +1,14 @@
 from datasets import load_dataset
 import os
+
 # https://huggingface.co/datasets/EleutherAI/pythia-memorized-evals/viewer/default/duped.12b.123000?views[]=duped12b123000
 # 1. Configuration
-# Set the specific step number you want (e.g., 23000, 123000).
-# Note: Check the Hugging Face viewer to ensure the specific step exists as a split.
-step_number = 123000
+# Set the specific split number you want (e.g., 23000, 123000).
+# Note: Check the Hugging Face viewer to ensure the specific split exists.
+split_number = 123000
 
 # Construct the split name dynamically (e.g., "duped.12b.123000")
-target_split = f"duped.12b.{step_number}"
+target_split = f"duped.12b.{split_number}"
 
 # Base path for your cache
 base_cache_dir = "/mnt/storage2/student_data/bstahl/bbq/pythia-12b_memorized-evals"

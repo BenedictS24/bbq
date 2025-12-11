@@ -1,5 +1,6 @@
 from huggingface_hub import snapshot_download
 import os
+
 # https://huggingface.co/EleutherAI/pythia-12b 
 # 1. Configuration
 model_id = "EleutherAI/pythia-12b"
@@ -26,8 +27,6 @@ try:
         repo_id=model_id,
         revision=training_step,
         local_dir=save_path,           # Uses your specific path
-        local_dir_use_symlinks=False,  # Downloads actual files
-        resume_download=True
     )
     print(f"\nSuccess! Model saved to: {path}")
 
