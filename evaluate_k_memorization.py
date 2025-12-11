@@ -21,7 +21,6 @@ save_filename = "memorization_results.jsonl"
 
 
 
-
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Evaluate memorization of a language model.")
     parser.add_argument("--use_quantized_model", type=str, default=str(use_quantized_model),\
@@ -32,6 +31,8 @@ def parse_arguments():
     args = parser.parse_args()
     args.use_quantized_model = args.use_quantized_model.lower() == "true"
     return args
+
+
 
 def load_eval_dataset():
     dataset = load_dataset(

@@ -9,7 +9,7 @@ from tqdm import tqdm
 import numpy as np
 
 
-# Config 
+
 use_quantized_model = False
 device = "cuda:0"
 eval_token_count = 16
