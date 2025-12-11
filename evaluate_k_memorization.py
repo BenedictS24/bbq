@@ -13,7 +13,7 @@ import argparse
 # Config 
 use_quantized_model = True
 device = "cuda:0"
-k = 16
+k = 32 
 number_of_tests = 500 
 save_results_to_file = True
 save_filename = "memorization_results.jsonl"

@@ -2,7 +2,8 @@
 
 
 #model_path="./pythia-12b-4bit-bbq"
-model_path="EleutherAI/pythia-12b"
+#model_path="EleutherAI/pythia-12b"
+model_path="/home/bstahl/bbq/pythia-12b/models--EleutherAI--pythia-12b/snapshots/bb1e3e710cdf6b524461d543cfb5ba773f0a81b6"
 tasks="hellaswag"
 output_dir="model_eval_results"
 
