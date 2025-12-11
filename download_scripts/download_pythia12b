@@ -1,0 +1,35 @@
+from huggingface_hub import snapshot_download
+import os
+
+# 1. Configuration
+model_id = "EleutherAI/pythia-12b"
+training_step = "step143000"  # Change this to "step123000" etc. if needed
+
+# Define your base models directory
+base_folder = "/home/bstahl/bbq/models/"
+
+# Define the specific subfolder for this model version
+# Result: /home/bstahl/bbq/models/pythia-12b-duped-step143000
+save_path = os.path.join(base_folder, f"pythia-12b-duped-{training_step}")
+
+# 2. Create the directory if it doesn't exist
+os.makedirs(save_path, exist_ok=True)
+
+print("--- Starting Download ---")
+print(f"Model: {model_id}")
+print(f"Training Step: {training_step}")
+print(f"Target Directory: {save_path}")
+
+# 3. Download
+try:
+    path = snapshot_download(
+        repo_id=model_id,
+        revision=training_step,
+        local_dir=save_path,           # Uses your specific path
+        local_dir_use_symlinks=False,  # Downloads actual files
+        resume_download=True
+    )
+    print(f"\nSuccess! Model saved to: {path}")
+
+except Exception as e:
+    print(f"\nError: {e}")
