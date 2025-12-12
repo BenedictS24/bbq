@@ -1,13 +1,16 @@
 import torch
 from transformers import GPTNeoXForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
+# https://huggingface.co/docs/transformers/v5.0.0rc0/en/main_classes/quantization#transformers.BitsAndBytesConfig
+
 # --- configuration ---
+# 1. choose quantization mode: "nf4bit", "fp4bit", or "8bit"
 quant_mode = "8bit"
 
 # 2. the specific model folder you want to quantize
 model_name = "pythia-12b-duped-step143000"
 
-# 1. the base directory where all your models are stored
+# 3. the base directory where all your models are stored
 models_path = "~/bbq/models" 
 
 
@@ -21,11 +24,18 @@ output_dir = f"{models_path}/{model_name}-{quant_mode}"
 # --- setup ---
 print(f"Configuring for {quant_mode} quantization...")
 
-if quant_mode == "4bit":
+if quant_mode == "nf4bit":
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
-        bnb_4bit_compute_dtype=torch.float16,
+        bnb_4bit_compute_dtype=torch.bfloat16,
+        bnb_4bit_use_double_quant=True
+    )
+elif quant_mode == "fp4bit":
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_quant_type="fp4",
+        bnb_4bit_compute_dtype=torch.bfloat16,
         bnb_4bit_use_double_quant=True
     )
 elif quant_mode == "8bit":
@@ -34,7 +44,7 @@ elif quant_mode == "8bit":
         llm_int8_threshold=6.0,
     )
 else:
-    raise ValueError("quant_mode must be '4bit' or '8bit'")
+    raise ValueError("quant_mode must be 'nf4bit', 'fp4bit', or '8bit'")
 
 
 # --- execution ---
