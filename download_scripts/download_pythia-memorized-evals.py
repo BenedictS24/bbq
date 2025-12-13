@@ -12,7 +12,7 @@ split_number = 123000
 target_split = f"duped.12b.{split_number}"
 
 # Base path for your cache
-base_cache_dir = "/mnt/storage2/student_data/bstahl/bbq/pythia-12b_memorized-evals"
+base_cache_dir = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
 
 print(f"--- Loading Dataset ---")
 print(f"Dataset: EleutherAI/pythia-memorized-evals")

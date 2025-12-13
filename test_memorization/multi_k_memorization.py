@@ -16,7 +16,7 @@ specific training data. It does this by:
 1. Loading a dataset of known "memorized" examples.
 2. Prompting the model with the first part of a sequence (context).
 3. Checking if the model can exactly reproduce the second part (continuation).
-4. Saving detailed statistics (accuracy, exact match, successive tokens) to a JSONL file.
+4. Saving detailed statistics (accuracy, exact match, successive tokens, distribution) to a JSONL file.
 """
 
 # --- Configuration ---
@@ -26,17 +26,19 @@ model_base_dir = "/home/bstahl/bbq/models"
 # List of specific model folder names inside 'model_base_dir' to evaluate
 model_list = [
     "pythia-12b-duped-step143000",
-    "pythia-12b-duped-step143000-4bit"
+    "pythia-12b-duped-step143000-8bit",
+    "pythia-12b-duped-step143000-fp4bit",
+    "pythia-12b-duped-step143000-nf4bit"
 ]
 
 device = "cuda:0"          # GPU device to use
 eval_token_count = 16      # How many tokens the model should generate (the target continuation length)
 k_step_size = 4            # Step size for the loop over 'k' (context length)
-start_k = 6                # Minimum context length (k) to test
-end_k = 46                 # Maximum context length (k) to test
+start_k = 4                # Minimum context length (k) to test
+end_k = 48                 # Maximum context length (k) to test
 number_of_tests = 1000     # How many samples from the dataset to evaluate per setting
 save_results_to_file = True
-save_filename = "./experiment_data/k8-48_memorization_results.jsonl"
+save_filename = "/home/bstahl/bbq/data/experiment_data/k4-48_fp16-8bit-fp4-nf4_memorization_results.jsonl"
 test_sequence_length = 64  # Total length of the sample (Context + Target)
 
 
@@ -50,7 +52,7 @@ def load_eval_dataset():
     dataset = load_dataset(
         "EleutherAI/pythia-memorized-evals",
         split="duped.12b",
-        cache_dir="/mnt/storage2/student_data/bstahl/bbq/pythia-12b_memorized-evals"
+        cache_dir="/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
         )
     print(f"Loaded evaluation dataset with {len(dataset)} examples.")
     return dataset
@@ -85,6 +87,7 @@ def evaluate_output(output_tokens, expected_tokens):
       - accuracy: Percentage of tokens that matched position-wise.
       - exact_match: Boolean, True only if 100% of tokens matched.
       - successive_correct: Count of correct tokens from the start before the first error.
+      - correct: The raw count of correct tokens (position-wise).
     """
     correct = 0
     successive_correct = 0
@@ -93,7 +96,7 @@ def evaluate_output(output_tokens, expected_tokens):
     exact_match = False
 
     if total == 0:
-        return 0.0, False, 0
+        return 0.0, False, 0, 0
     
     # Pair up the generated token with the expected token
     for out_token, exp_token in zip(output_tokens, expected_tokens):
@@ -109,7 +112,7 @@ def evaluate_output(output_tokens, expected_tokens):
     if correct == total:
         exact_match = True
     
-    return accuracy, exact_match, successive_correct
+    return accuracy, exact_match, successive_correct, correct
 
 
 def test_memorization(test_sequence, k, model, tokenizer):
@@ -151,29 +154,43 @@ def run_inference_loop(dataset, k, model, tokenizer):
     """
     accuracies = []
     successive_counts = []
+    correct_counts = []  # Store raw count of correct tokens per sample
     exact_matches = 0
 
     # tqdm provides a progress bar for the loop
     for sample in tqdm(dataset, leave=False):
         tokens = sample["tokens"]
-        accuracy, exact_match, successive = test_memorization(tokens, k, model, tokenizer)
+        accuracy, exact_match, successive, correct_count = test_memorization(tokens, k, model, tokenizer)
         
         accuracies.append(accuracy)
         successive_counts.append(successive)
+        correct_counts.append(correct_count)
+        
         if exact_match:
             exact_matches += 1
             
-    return accuracies, successive_counts, exact_matches
+    return accuracies, successive_counts, exact_matches, correct_counts
 
 
-def compile_results(accuracies, successive_counts, exact_matches, runtime, model_name, k, sample_size):
-    """Calculates averages and formats the results dictionary for saving."""
+def compile_results(accuracies, successive_counts, exact_matches, correct_counts, runtime, model_name, k, sample_size):
+    """Calculates averages, formats the results dictionary, and gathers system info."""
     overall_accuracy = sum(accuracies) / len(accuracies)
     average_successive_correct = sum(successive_counts) / len(successive_counts)
     accuracy_standard_deviation = np.std(accuracies)
     average_correct_tokens = overall_accuracy * eval_token_count
     timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
     exact_match_percentage = exact_matches / sample_size
+
+    # Calculate distribution: Index i represents how many samples had exactly i correct tokens
+    token_distribution = np.bincount(correct_counts, minlength=eval_token_count + 1).tolist()
+
+    # --- System Info Gathering ---
+    gpu_details = []
+    if torch.cuda.is_available():
+        for i in range(torch.cuda.device_count()):
+            gpu_details.append(f"GPU {i}: {torch.cuda.get_device_name(i)}")
+    else:
+        gpu_details.append("No GPU available")
 
     results = {
         "model_name": model_name,
@@ -184,8 +201,14 @@ def compile_results(accuracies, successive_counts, exact_matches, runtime, model
         "average_successive_correct_tokens": round(average_successive_correct, 4),
         "accuracy_standard_deviation": round(accuracy_standard_deviation, 4),
         "exact_match_percentage": round(exact_match_percentage, 4),
+        "correct_token_distribution": token_distribution,
         "runtime_seconds": round(runtime, 4),
-        "timestamp": timestamp
+        "timestamp": timestamp,
+        # System Metadata
+        "torch_version": torch.__version__,
+        "cuda_version": torch.version.cuda,
+        "gpu_count": torch.cuda.device_count(),
+        "gpu_details": gpu_details
     }
     return results
 
@@ -205,6 +228,8 @@ def print_summary(results):
           f"over {results['sample_size']} tests: \n"
           f"      {results['overall_accuracy']:.4f} -> {results['average_correct_tokens']:.4f} correct tokens on average")
     print(f"Average Successive Correct: {results['average_successive_correct_tokens']:.4f}")
+    print(f"Distribution (0 to {eval_token_count} correct): {results['correct_token_distribution']}")
+    print(f"System: PyTorch {results['torch_version']} | CUDA {results['cuda_version']}")
     print(f"Runtime: {results['runtime_seconds']:.4f} seconds")
     print("="*70)
 
@@ -226,13 +251,13 @@ def main(model_name, k):
     print(f"Starting evaluation for model: {model_name} | k={k}...")
     start_time = time.time()
     
-    accuracies, successive_counts, exact_matches = run_inference_loop(dataset_subset, k, model, tokenizer)
+    accuracies, successive_counts, exact_matches, correct_counts = run_inference_loop(dataset_subset, k, model, tokenizer)
     
     runtime = time.time() - start_time
 
     # 4. Process Results
     results = compile_results(
-        accuracies, successive_counts, exact_matches, 
+        accuracies, successive_counts, exact_matches, correct_counts,
         runtime, model_name, k, number_of_tests
     )
 
