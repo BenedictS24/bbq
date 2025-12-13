@@ -131,10 +131,14 @@ def test_memorization(test_sequence, k, model, tokenizer):
     
     input_tokens = torch.tensor([prompt_tokens]).to(device)
     
+    # Create a mask of 1s (keep all tokens) with the same shape as input_tokens
+    attention_mask = torch.ones_like(input_tokens).to(device)
+
     # Generate the continuation (inference)
     with torch.no_grad():
         output = model.generate(
             input_ids = input_tokens, 
+            attention_mask = attention_mask,
             max_new_tokens = len(expected_tokens),
             do_sample = False, # Greedy decoding (deterministic)
             pad_token_id = tokenizer.eos_token_id
