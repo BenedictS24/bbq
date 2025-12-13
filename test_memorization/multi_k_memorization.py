@@ -8,21 +8,45 @@ from tqdm import tqdm
 import numpy as np
 import time
 
+"""
+Memorization Evaluation Script
+
+This script evaluates how well a list of Language Models (LLMs) have memorized 
+specific training data. It does this by:
+1. Loading a dataset of known "memorized" examples.
+2. Prompting the model with the first part of a sequence (context).
+3. Checking if the model can exactly reproduce the second part (continuation).
+4. Saving detailed statistics (accuracy, exact match, successive tokens) to a JSONL file.
+"""
+
 # --- Configuration ---
-use_quantized_model = False
-device = "cuda:0"
-eval_token_count = 16
-k_step_size = 4
-start_k = 6
-end_k = 46
-number_of_tests = 1000 
+# Directory containing your model checkpoints
+model_base_dir = "/home/bstahl/bbq/models" 
+
+# List of specific model folder names inside 'model_base_dir' to evaluate
+model_list = [
+    "pythia-12b-duped-step143000",
+    "pythia-12b-duped-step143000-4bit"
+]
+
+device = "cuda:0"          # GPU device to use
+eval_token_count = 16      # How many tokens the model should generate (the target continuation length)
+k_step_size = 4            # Step size for the loop over 'k' (context length)
+start_k = 6                # Minimum context length (k) to test
+end_k = 46                 # Maximum context length (k) to test
+number_of_tests = 1000     # How many samples from the dataset to evaluate per setting
 save_results_to_file = True
 save_filename = "./experiment_data/k8-48_memorization_results.jsonl"
-test_sequence_length = 64
+test_sequence_length = 64  # Total length of the sample (Context + Target)
+
 
 # --- Helper Functions ---
 
 def load_eval_dataset():
+    """
+    Loads the specific 'duped.12b' split from the memorized-evals dataset.
+    This dataset contains sequences known to be duplicated in the training data.
+    """
     dataset = load_dataset(
         "EleutherAI/pythia-memorized-evals",
         split="duped.12b",
@@ -31,29 +55,37 @@ def load_eval_dataset():
     print(f"Loaded evaluation dataset with {len(dataset)} examples.")
     return dataset
 
-def setup_model_and_tokenizer(use_quantized, device):
-    if use_quantized:
-        model_name = "./pythia-12b-4bit-bbq"
-    else:
-        model_name = "EleutherAI/pythia-12b"
+
+def setup_model_and_tokenizer(model_path, device):
+    """
+    Loads the model and tokenizer from the specific path provided.
+    """
+    print(f"Loading model from: {model_path}...")
     
-    print(f"Loading model: {model_name}...")
-    
+    # Load model in float16 to save memory, mapped to the specified device
     model = GPTNeoXForCausalLM.from_pretrained(
-        model_name,
+        model_path,
         dtype=torch.float16,        
         device_map={"": device},
-        cache_dir=f"./{model_name.split('/')[-1]}",
+        cache_dir=f"./{model_path.split('/')[-1]}", 
     )
 
     tokenizer = AutoTokenizer.from_pretrained(
-        model_name,
-        cache_dir=f"./{model_name.split('/')[-1]}",
+        model_path,
+        cache_dir=f"./{model_path.split('/')[-1]}",
     )
     
-    return model, tokenizer, model_name
+    return model, tokenizer
+
 
 def evaluate_output(output_tokens, expected_tokens):
+    """
+    Compares the generated tokens against the expected ground truth.
+    Returns:
+      - accuracy: Percentage of tokens that matched position-wise.
+      - exact_match: Boolean, True only if 100% of tokens matched.
+      - successive_correct: Count of correct tokens from the start before the first error.
+    """
     correct = 0
     successive_correct = 0
     mismatch_found = False
@@ -63,9 +95,11 @@ def evaluate_output(output_tokens, expected_tokens):
     if total == 0:
         return 0.0, False, 0
     
+    # Pair up the generated token with the expected token
     for out_token, exp_token in zip(output_tokens, expected_tokens):
         if out_token == exp_token:
             correct += 1
+            # Count how long the model stays on track from the very beginning
             if not mismatch_found:
                 successive_correct += 1
         else:
@@ -77,34 +111,53 @@ def evaluate_output(output_tokens, expected_tokens):
     
     return accuracy, exact_match, successive_correct
 
+
 def test_memorization(test_sequence, k, model, tokenizer):
-    separation_index= len(test_sequence) - eval_token_count
-    prompt_tokens = test_sequence[separation_index-k:separation_index]
+    """
+    Splits a sequence into a prompt (length k) and a target (expected result).
+    Feeds the prompt to the model and compares the output.
+    """
+    # Calculate where to split the sequence based on how many tokens we want to predict
+    separation_index = len(test_sequence) - eval_token_count
+    
+    # The Prompt: The 'k' tokens immediately preceding the target area
+    prompt_tokens = test_sequence[separation_index-k : separation_index]
+    
+    # The Target: The actual tokens that followed the prompt in the training data
     expected_tokens = test_sequence[separation_index:]
     
     input_tokens = torch.tensor([prompt_tokens]).to(device)
+    
+    # Generate the continuation (inference)
     with torch.no_grad():
         output = model.generate(
             input_ids = input_tokens, 
             max_new_tokens = len(expected_tokens),
-            do_sample = False,
+            do_sample = False, # Greedy decoding (deterministic)
             pad_token_id = tokenizer.eos_token_id
         )
 
     full_output_tokens = output[0].tolist()
+    
+    # Slice the output to get only the NEW tokens generated by the model
     output_tokens = full_output_tokens[len(prompt_tokens):]
 
     return evaluate_output(output_tokens, expected_tokens)
 
+
 def run_inference_loop(dataset, k, model, tokenizer):
-    """Runs the memorization test over the dataset and returns raw stats."""
+    """
+    Iterates through the dataset and collects raw stats for a specific 'k'.
+    """
     accuracies = []
     successive_counts = []
     exact_matches = 0
 
+    # tqdm provides a progress bar for the loop
     for sample in tqdm(dataset, leave=False):
         tokens = sample["tokens"]
         accuracy, exact_match, successive = test_memorization(tokens, k, model, tokenizer)
+        
         accuracies.append(accuracy)
         successive_counts.append(successive)
         if exact_match:
@@ -112,8 +165,9 @@ def run_inference_loop(dataset, k, model, tokenizer):
             
     return accuracies, successive_counts, exact_matches
 
+
 def compile_results(accuracies, successive_counts, exact_matches, runtime, model_name, k, sample_size):
-    """Calculates averages and formats the results dictionary."""
+    """Calculates averages and formats the results dictionary for saving."""
     overall_accuracy = sum(accuracies) / len(accuracies)
     average_successive_correct = sum(successive_counts) / len(successive_counts)
     accuracy_standard_deviation = np.std(accuracies)
@@ -135,10 +189,15 @@ def compile_results(accuracies, successive_counts, exact_matches, runtime, model
     }
     return results
 
+
 def save_results_to_json(results, filename):
+    # Ensure the directory exists before writing; avoids "FileNotFoundError"
     os.makedirs(os.path.dirname(filename), exist_ok=True)
+    
+    # Append ("a") to the file so we don't overwrite previous results
     with open(filename, "a") as f:
         f.write(json.dumps(results) + "\n")
+
 
 def print_summary(results):
     print("="*70)
@@ -149,20 +208,26 @@ def print_summary(results):
     print(f"Runtime: {results['runtime_seconds']:.4f} seconds")
     print("="*70)
 
+
 # --- Main Logic ---
 
-def main(k, use_quantized):
+def main(model_name, k):
+    # Construct the full path by joining the base dir and the specific model folder
+    full_model_path = os.path.join(model_base_dir, model_name)
+
     # 1. Setup Resources
-    model, tokenizer, model_name = setup_model_and_tokenizer(use_quantized, device)
+    model, tokenizer = setup_model_and_tokenizer(full_model_path, device)
     
-    # 2. Prepare Data
+    # 2. Prepare Data (Select the first 'number_of_tests' samples)
     dataset = load_eval_dataset()
     dataset_subset = dataset.select(range(number_of_tests))
 
     # 3. Run Inference
-    print(f"Starting evaluation for k={k}...")
+    print(f"Starting evaluation for model: {model_name} | k={k}...")
     start_time = time.time()
+    
     accuracies, successive_counts, exact_matches = run_inference_loop(dataset_subset, k, model, tokenizer)
+    
     runtime = time.time() - start_time
 
     # 4. Process Results
@@ -178,14 +243,17 @@ def main(k, use_quantized):
 
 
 if __name__ == "__main__":
+    # Validate that the sequence length math works out
     if (test_sequence_length - eval_token_count) % k_step_size != 0:
         print("Error: (test_sequence_length - eval_token_count) must be divisible by k_step_size")
         exit(1)
         
-    # Standard Model Pass
-    for k in tqdm(range(start_k, end_k + 1, k_step_size)):
-        main(k, use_quantized=False)
-
-    # Quantized Model Pass
-    for k in tqdm(range(start_k, end_k + 1, k_step_size)):
-        main(k, use_quantized=True)
+    # Outer Loop: Iterate through every model in the configuration list
+    for model_name in model_list:
+        print(f"\n{'#'*30}")
+        print(f"PROCESSING MODEL: {model_name}")
+        print(f"{'#'*30}\n")
+        
+        # Inner Loop: Iterate through different prompt lengths (k) for this specific model
+        for k in tqdm(range(start_k, end_k + 1, k_step_size)):
+            main(model_name, k)
