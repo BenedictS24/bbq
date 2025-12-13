@@ -5,13 +5,13 @@ from transformers import GPTNeoXForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 # --- configuration ---
 # 1. choose quantization mode: "nf4bit", "fp4bit", or "8bit"
-quant_mode = "8bit"
+quant_mode = "fp4bit"
 
 # 2. the specific model folder you want to quantize
 model_name = "pythia-12b-duped-step143000"
 
 # 3. the base directory where all your models are stored
-models_path = "~/bbq/models" 
+models_path = "/home/bstahl/bbq/models" 
 
 
 # --- path construction ---

@@ -5,9 +5,9 @@ import torch
 use_quantized_model = False 
 
 if use_quantized_model:
-    model_name = "/home/bstahl/bbq/pythia-12b-4bit-bbq"
+    model_name = "/home/bstahl/bbq/models/pythia-12b-duped-step143000-8bit"
 else:
-    model_name = "~/bbq/models/pythia-12b-duped-step143000"
+    model_name = "/home/bstahl/bbq/models/pythia-12b-duped-step143000"
 
 prompt = "Hello, my name is"
 device = "cuda:0"
