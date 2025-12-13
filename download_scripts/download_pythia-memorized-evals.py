@@ -6,31 +6,31 @@ import os
 # 1. Configuration
 # Set the specific split number you want (e.g., 23000, 123000).
 # Note: Check the Hugging Face viewer to ensure the specific split exists.
-split_number = 123000
+SPLIT_NUMBER = 123000
 
 # Construct the split name dynamically (e.g., "duped.12b.123000")
-target_split = f"duped.12b.{split_number}"
+TARGET_SPLIT = f"duped.12b.{SPLIT_NUMBER}"
 
 # Base path for your cache
-base_cache_dir = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
+BASE_CACHE_DIR = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
 
 print(f"--- Loading Dataset ---")
 print(f"Dataset: EleutherAI/pythia-memorized-evals")
-print(f"Split: {target_split}")
+print(f"Split: {TARGET_SPLIT}")
 
 # 2. Load the dataset
 try:
     dataset = load_dataset(
         "EleutherAI/pythia-memorized-evals",
-        split=target_split,
-        cache_dir=base_cache_dir
+        split=TARGET_SPLIT,
+        cache_dir=BASE_CACHE_DIR
     )
 
     print("\nSuccess! Dataset loaded.")
     print(dataset)
 
 except ValueError as e:
-    print(f"\nError: The split '{target_split}' was not found.")
+    print(f"\nError: The split '{TARGET_SPLIT}' was not found.")
     print("Double-check that this specific step number exists in the dataset on Hugging Face.")
 except Exception as e:
     print(f"\nError: {e}")

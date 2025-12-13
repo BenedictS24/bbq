@@ -2,16 +2,18 @@ import os
 import subprocess
 from datetime import datetime
 
-# --- Configuration ---
+# https://github.com/EleutherAI/lm-evaluation-harness
+
+# --- CONFIGURATION ---
 
 # 1. Directory containing your model checkpoints
-model_base_dir = "/home/bstahl/bbq/models"
+MODEL_BASE_DIR = "/home/bstahl/bbq/models"
 
 # 2. Base directory for saving results
-results_base_dir = "/home/bstahl/bbq/data/model_eval_results"
+RESULTS_BASE_DIR = "/home/bstahl/bbq/data/model_eval_results"
 
-# 3. List of specific model folder names inside 'model_base_dir' to evaluate
-model_list = [
+# 3. List of specific model folder names inside 'MODEL_BASE_DIR' to evaluate
+MODEL_LIST = [
     "pythia-12b-duped-step143000",
     "pythia-12b-duped-step143000-8bit",
     "pythia-12b-duped-step143000-fp4bit",
@@ -19,15 +21,15 @@ model_list = [
 ]
 
 # 4. Tasks to run
-tasks = "hellaswag"
+TASKS = "hellaswag"
 
-# --- Execution ---
+# --- EXECUTION ---
 
 def run_evaluation():
     
-    for model_name in model_list:
+    for model_name in MODEL_LIST:
         # Construct the full path to the model
-        full_model_path = os.path.join(model_base_dir, model_name)
+        full_model_path = os.path.join(MODEL_BASE_DIR, model_name)
         
         # Verify model exists
         if not os.path.exists(full_model_path):
@@ -39,7 +41,7 @@ def run_evaluation():
         timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
         
         # Create the specific output folder
-        specific_output_dir = os.path.join(results_base_dir, f"{model_name}_{timestamp}")
+        specific_output_dir = os.path.join(RESULTS_BASE_DIR, f"{model_name}_{timestamp}")
         
         # Create the directory immediately
         os.makedirs(specific_output_dir, exist_ok=True)
@@ -55,7 +57,7 @@ def run_evaluation():
             "lm_eval",
             "--model", "hf",
             "--model_args", f"pretrained={full_model_path},trust_remote_code=true",
-            "--tasks", tasks,
+            "--tasks", TASKS,
             "--device", "cuda:0",
             "--batch_size", "auto",
             "--output_path", specific_output_dir,

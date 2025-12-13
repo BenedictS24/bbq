@@ -3,64 +3,64 @@ from transformers import GPTNeoXForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 # https://huggingface.co/docs/transformers/v5.0.0rc0/en/main_classes/quantization#transformers.BitsAndBytesConfig
 
-# --- configuration ---
-# 1. choose quantization mode: "nf4bit", "fp4bit", or "8bit"
-quant_mode = "fp4bit"
+# --- CONFIGURATION ---
+# 1. Choose quantization mode: "nf4bit", "fp4bit", or "8bit"
+QUANT_MODE = "fp4bit"
 
-# 2. the specific model folder you want to quantize
-model_name = "pythia-12b-duped-step143000"
+# 2. The specific model folder you want to quantize
+MODEL_NAME = "pythia-12b-duped-step143000"
 
-# 3. the base directory where all your models are stored
-models_path = "/home/bstahl/bbq/models" 
+# 3. The base directory where all your models are stored
+MODELS_PATH = "/home/bstahl/bbq/models"
 
 
-# --- path construction ---
-# full path to the input model
-local_path = f"{models_path}/{model_name}"
+# --- PATH CONSTRUCTION ---
+# Full path to the input model
+LOCAL_PATH = f"{MODELS_PATH}/{MODEL_NAME}"
 
-# full path for the output (saves it back into the models folder)
-output_dir = f"{models_path}/{model_name}-{quant_mode}"
+# Full path for the output (saves it back into the models folder)
+OUTPUT_DIR = f"{MODELS_PATH}/{MODEL_NAME}-{QUANT_MODE}"
 
-# --- setup ---
-print(f"Configuring for {quant_mode} quantization...")
+# --- SETUP ---
+print(f"Configuring for {QUANT_MODE} quantization...")
 
-if quant_mode == "nf4bit":
+if QUANT_MODE == "nf4bit":
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="nf4",
         bnb_4bit_compute_dtype=torch.bfloat16,
         bnb_4bit_use_double_quant=True
     )
-elif quant_mode == "fp4bit":
+elif QUANT_MODE == "fp4bit":
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
         bnb_4bit_quant_type="fp4",
         bnb_4bit_compute_dtype=torch.bfloat16,
         bnb_4bit_use_double_quant=True
     )
-elif quant_mode == "8bit":
+elif QUANT_MODE == "8bit":
     bnb_config = BitsAndBytesConfig(
         load_in_8bit=True,
         llm_int8_threshold=6.0,
     )
 else:
-    raise ValueError("quant_mode must be 'nf4bit', 'fp4bit', or '8bit'")
+    raise ValueError("QUANT_MODE must be 'nf4bit', 'fp4bit', or '8bit'")
 
 
-# --- execution ---
-print(f"Loading model from: {local_path}")
+# --- EXECUTION ---
+print(f"Loading model from: {LOCAL_PATH}")
 model = GPTNeoXForCausalLM.from_pretrained(
-    local_path,
+    LOCAL_PATH,
     quantization_config=bnb_config,
     device_map="auto"
 )
 
-print(f"Saving quantized model to: {output_dir}")
-model.save_pretrained(output_dir)
+print(f"Saving quantized model to: {OUTPUT_DIR}")
+model.save_pretrained(OUTPUT_DIR)
 
-# load tokenizer directly from local path
-print(f"Loading tokenizer from: {local_path}")
-tokenizer = AutoTokenizer.from_pretrained(local_path)
-tokenizer.save_pretrained(output_dir)
+# Load tokenizer directly from local path
+print(f"Loading tokenizer from: {LOCAL_PATH}")
+tokenizer = AutoTokenizer.from_pretrained(LOCAL_PATH)
+tokenizer.save_pretrained(OUTPUT_DIR)
 
 print("Done!")

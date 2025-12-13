@@ -10,28 +10,25 @@ import numpy as np
 import argparse
 
 
-# Config 
-use_quantized_model = True
-device = "cuda:0"
-k = 32 
-number_of_tests = 500 
-save_results_to_file = True
-save_filename = "memorization_results.jsonl"
-
-
+# --- CONFIGURATION ---
+USE_QUANTIZED_MODEL = True
+DEVICE = "cuda:0"
+K = 32 
+NUMBER_OF_TESTS = 500 
+SAVE_RESULTS_TO_FILE = True
+SAVE_FILENAME = "memorization_results.jsonl"
 
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Evaluate memorization of a language model.")
-    parser.add_argument("--use_quantized_model", type=str, default=str(use_quantized_model),\
-                         choices=["True", "False", "true", "false"], help="Whether to use the quantized model.")
-    parser.add_argument("--k", type=int, default=k, help="Number of prompt tokens.")
-    parser.add_argument("--num_tests", type=int, default=number_of_tests, help="Number of test samples to evaluate.")
-    parser.add_argument("--save_file", type=str, default=save_filename, help="File to save results.")
+    parser.add_argument("--use_quantized_model", type=str, default=str(USE_QUANTIZED_MODEL),
+                        choices=["True", "False", "true", "false"], help="Whether to use the quantized model.")
+    parser.add_argument("--k", type=int, default=K, help="Number of prompt tokens.")
+    parser.add_argument("--num_tests", type=int, default=NUMBER_OF_TESTS, help="Number of test samples to evaluate.")
+    parser.add_argument("--save_file", type=str, default=SAVE_FILENAME, help="File to save results.")
     args = parser.parse_args()
     args.use_quantized_model = args.use_quantized_model.lower() == "true"
     return args
-
 
 
 def load_eval_dataset():
@@ -43,7 +40,6 @@ def load_eval_dataset():
 
     print(f"Loaded evaluation dataset with {len(dataset)} examples.")
     return dataset
-
 
 
 def evaluate_output(output_tokens, expected_tokens):
@@ -64,7 +60,6 @@ def evaluate_output(output_tokens, expected_tokens):
     return accuracy, exact_match
 
 
-
 def test_memorization(test_sequence, k, model, tokenizer):
     if k >= len(test_sequence):
         print("Error: sequence is shorter than k")
@@ -73,7 +68,7 @@ def test_memorization(test_sequence, k, model, tokenizer):
     prompt_tokens = test_sequence[:k]
     expected_tokens = test_sequence[k:]
     
-    input_tokens = torch.tensor([prompt_tokens]).to(device)
+    input_tokens = torch.tensor([prompt_tokens]).to(DEVICE)
     with torch.no_grad():
         output = model.generate(
             input_ids = input_tokens, 
@@ -88,15 +83,15 @@ def test_memorization(test_sequence, k, model, tokenizer):
     return evaluate_output(output_tokens, expected_tokens)
 
 
-
 def save_results_to_json(results, filename):
     with open(filename, "a") as f:
         f.write(json.dumps(results) + "\n")
 
 
-
 def main():
     args = parse_arguments()
+    
+    # Map args to local variables
     use_quantized_model = args.use_quantized_model
     k = args.k
     number_of_tests = args.num_tests
@@ -115,7 +110,7 @@ def main():
     model = GPTNeoXForCausalLM.from_pretrained(
         model_name,
         dtype=torch.float16,        
-        device_map={"": device},
+        device_map={"": DEVICE},
         cache_dir=f"./{model_name.split('/')[-1]}",
     )
 
@@ -124,14 +119,19 @@ def main():
         cache_dir=f"./{model_name.split('/')[-1]}",
     )
 
-
     dataset = load_eval_dataset()
     dataset_subset = dataset.select(range(number_of_tests))
 
     accuracies = []
     exact_matches = 0
+    
+    # Note: 'tokens' variable was undefined in your original print statement scope
+    # I've added a fallback length here to ensure the calculation inside the loop works for the average
+    token_length_for_avg = 0 
+
     for sample in tqdm(dataset_subset):
         tokens = sample["tokens"]
+        token_length_for_avg = len(tokens) # Capture length for final stats
         accuracy, exact_match = test_memorization(tokens, k, model, tokenizer)
         accuracies.append(accuracy)
         if exact_match:
@@ -139,14 +139,18 @@ def main():
 
     overall_accuracy = sum(accuracies) / len(accuracies)
     accuracy_standard_deviation = np.std(accuracies)
-    average_correct_tokens = overall_accuracy * (len(tokens) - k)
+    
+    # Calculate average correct tokens based on the last seen token length (assuming uniform length)
+    # or you might want to average this inside the loop if lengths vary.
+    average_correct_tokens = overall_accuracy * (token_length_for_avg - k)
+    
     timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
     exact_match_percentage = exact_matches / number_of_tests
 
     results = {
         "model_name": model_name,
         "k": k,
-        "generated_tokens_per_test": len(tokens) - k,
+        "generated_tokens_per_test": token_length_for_avg - k,
         "sample_size": number_of_tests,
         "overall_accuracy": round(overall_accuracy, 3),
         "average_correct_tokens": round(average_correct_tokens, 3),
@@ -154,7 +158,8 @@ def main():
         "exact_match_percentage": round(exact_match_percentage, 3),
         "timestamp": timestamp
     }
-    if save_results_to_file:
+    
+    if SAVE_RESULTS_TO_FILE:
         save_results_to_json(results, save_filename)
 
     print("="*70)
@@ -162,7 +167,6 @@ def main():
           {overall_accuracy:.3f} -> {average_correct_tokens:.3f} correct tokens on average")
     print("="*70)
     
-
 
 if __name__ == "__main__":
     main()

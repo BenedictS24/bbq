@@ -4,30 +4,30 @@ import os
 # https://huggingface.co/EleutherAI/pythia-12b 
 
 # 1. Configuration
-model_id = "EleutherAI/pythia-12b"
-training_step = "step143000"  # Change this to "step123000" etc. if needed
+MODEL_ID = "EleutherAI/pythia-12b"
+TRAINING_STEP = "step143000"  # Change this to "step123000" etc. if needed
 
 # Define your base models directory
-base_folder = "/home/bstahl/bbq/models/"
+BASE_FOLDER = "/home/bstahl/bbq/models/"
 
 # Define the specific subfolder for this model version
 # Result: /home/bstahl/bbq/models/pythia-12b-duped-step143000
-save_path = os.path.join(base_folder, f"pythia-12b-duped-{training_step}")
+SAVE_PATH = os.path.join(BASE_FOLDER, f"pythia-12b-duped-{TRAINING_STEP}")
 
 # 2. Create the directory if it doesn't exist
-os.makedirs(save_path, exist_ok=True)
+os.makedirs(SAVE_PATH, exist_ok=True)
 
 print("--- Starting Download ---")
-print(f"Model: {model_id}")
-print(f"Training Step: {training_step}")
-print(f"Target Directory: {save_path}")
+print(f"Model: {MODEL_ID}")
+print(f"Training Step: {TRAINING_STEP}")
+print(f"Target Directory: {SAVE_PATH}")
 
 # 3. Download
 try:
     path = snapshot_download(
-        repo_id=model_id,
-        revision=training_step,
-        local_dir=save_path,           # Uses your specific path
+        repo_id=MODEL_ID,
+        revision=TRAINING_STEP,
+        local_dir=SAVE_PATH,            # Uses your specific path
     )
     print(f"\nSuccess! Model saved to: {path}")
 
