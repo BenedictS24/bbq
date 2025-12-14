@@ -14,10 +14,7 @@ RESULTS_BASE_DIR = "/home/bstahl/bbq/data/model_eval_results"
 
 # 3. List of specific model folder names inside 'MODEL_BASE_DIR' to evaluate
 MODEL_LIST = [
-    "pythia-12b-duped-step143000",
-    "pythia-12b-duped-step143000-8bit",
-    "pythia-12b-duped-step143000-fp4bit",
-    "pythia-12b-duped-step143000-nf4bit"
+    "pythia-12b-duped-step143000-8bit"
 ]
 
 # 4. Tasks to run
@@ -59,7 +56,7 @@ def run_evaluation():
             "--model_args", f"pretrained={full_model_path},trust_remote_code=true",
             "--tasks", TASKS,
             "--device", "cuda:0",
-            "--batch_size", "auto",
+            "--batch_size", "2",
             "--output_path", specific_output_dir,
             "--log_samples"
         ]
