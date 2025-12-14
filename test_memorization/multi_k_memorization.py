@@ -19,27 +19,27 @@ specific training data. It does this by:
 4. Saving detailed statistics (accuracy, exact match, successive tokens, distribution) to a JSONL file.
 """
 
-# --- Configuration ---
+# --- CONFIGURATION ---
 # Directory containing your model checkpoints
-model_base_dir = "/home/bstahl/bbq/models" 
+MODEL_BASE_DIR = "/home/bstahl/bbq/models" 
 
-# List of specific model folder names inside 'model_base_dir' to evaluate
-model_list = [
+# List of specific model folder names inside 'MODEL_BASE_DIR' to evaluate
+MODEL_LIST = [
     "pythia-12b-duped-step143000",
     "pythia-12b-duped-step143000-8bit",
     "pythia-12b-duped-step143000-fp4bit",
     "pythia-12b-duped-step143000-nf4bit"
 ]
 
-device = "cuda:0"          # GPU device to use
-eval_token_count = 16      # How many tokens the model should generate (the target continuation length)
-k_step_size = 4            # Step size for the loop over 'k' (context length)
-start_k = 4                # Minimum context length (k) to test
-end_k = 48                 # Maximum context length (k) to test
-number_of_tests = 1000     # How many samples from the dataset to evaluate per setting
-save_results_to_file = True
-save_filename = "/home/bstahl/bbq/data/experiment_data/k4-48_fp16-8bit-fp4-nf4_memorization_results.jsonl"
-test_sequence_length = 64  # Total length of the sample (Context + Target)
+DEVICE = "cuda:0"          # GPU device to use
+EVAL_TOKEN_COUNT = 16      # How many tokens the model should generate (the target continuation length)
+K_STEP_SIZE = 4            # Step size for the loop over 'k' (context length)
+START_K = 4                # Minimum context length (k) to test
+END_K = 48                 # Maximum context length (k) to test
+NUMBER_OF_TESTS = 1000     # How many samples from the dataset to evaluate per setting
+SAVE_RESULTS_TO_FILE = True
+SAVE_FILENAME = "/home/bstahl/bbq/data/experiment_data/k4-48_fp16-8bit-fp4-nf4_memorization_results.jsonl"
+TEST_SEQUENCE_LENGTH = 64  # Total length of the sample (Context + Target)
 
 
 # --- Helper Functions ---
@@ -121,7 +121,7 @@ def test_memorization(test_sequence, k, model, tokenizer):
     Feeds the prompt to the model and compares the output.
     """
     # Calculate where to split the sequence based on how many tokens we want to predict
-    separation_index = len(test_sequence) - eval_token_count
+    separation_index = len(test_sequence) - EVAL_TOKEN_COUNT
     
     # The Prompt: The 'k' tokens immediately preceding the target area
     prompt_tokens = test_sequence[separation_index-k : separation_index]
@@ -129,10 +129,10 @@ def test_memorization(test_sequence, k, model, tokenizer):
     # The Target: The actual tokens that followed the prompt in the training data
     expected_tokens = test_sequence[separation_index:]
     
-    input_tokens = torch.tensor([prompt_tokens]).to(device)
+    input_tokens = torch.tensor([prompt_tokens]).to(DEVICE)
     
     # Create a mask of 1s (keep all tokens) with the same shape as input_tokens
-    attention_mask = torch.ones_like(input_tokens).to(device)
+    attention_mask = torch.ones_like(input_tokens).to(DEVICE)
 
     # Generate the continuation (inference)
     with torch.no_grad():
@@ -180,13 +180,17 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
     """Calculates averages, formats the results dictionary, and gathers system info."""
     overall_accuracy = sum(accuracies) / len(accuracies)
     average_successive_correct = sum(successive_counts) / len(successive_counts)
+    
+    # Standard Deviations
     accuracy_standard_deviation = np.std(accuracies)
-    average_correct_tokens = overall_accuracy * eval_token_count
+    successive_correct_standard_deviation = np.std(successive_counts)
+    
+    average_correct_tokens = overall_accuracy * EVAL_TOKEN_COUNT
     timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
     exact_match_percentage = exact_matches / sample_size
 
     # Calculate distribution: Index i represents how many samples had exactly i correct tokens
-    token_distribution = np.bincount(correct_counts, minlength=eval_token_count + 1).tolist()
+    token_distribution = np.bincount(correct_counts, minlength=EVAL_TOKEN_COUNT + 1).tolist()
 
     # --- System Info Gathering ---
     gpu_details = []
@@ -203,7 +207,11 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
         "overall_accuracy": round(overall_accuracy, 4),
         "average_correct_tokens": round(average_correct_tokens, 4),
         "average_successive_correct_tokens": round(average_successive_correct, 4),
+        
+        # Deviations
         "accuracy_standard_deviation": round(accuracy_standard_deviation, 4),
+        "successive_correct_standard_deviation": round(successive_correct_standard_deviation, 4),
+
         "exact_match_percentage": round(exact_match_percentage, 4),
         "correct_token_distribution": token_distribution,
         "runtime_seconds": round(runtime, 4),
@@ -230,9 +238,10 @@ def print_summary(results):
     print("="*70)
     print(f"Using {results['model_name']}: Overall memorization accuracy for k={results['k']} "
           f"over {results['sample_size']} tests: \n"
-          f"      {results['overall_accuracy']:.4f} -> {results['average_correct_tokens']:.4f} correct tokens on average")
-    print(f"Average Successive Correct: {results['average_successive_correct_tokens']:.4f}")
-    print(f"Distribution (0 to {eval_token_count} correct): {results['correct_token_distribution']}")
+          f"      {results['overall_accuracy']:.4f} (std: {results['accuracy_standard_deviation']:.4f})")
+    print(f"Avg Successive Correct: {results['average_successive_correct_tokens']:.4f} "
+          f"(std: {results['successive_correct_standard_deviation']:.4f})")
+    print(f"Distribution (0 to {EVAL_TOKEN_COUNT} correct): {results['correct_token_distribution']}")
     print(f"System: PyTorch {results['torch_version']} | CUDA {results['cuda_version']}")
     print(f"Runtime: {results['runtime_seconds']:.4f} seconds")
     print("="*70)
@@ -242,14 +251,14 @@ def print_summary(results):
 
 def main(model_name, k):
     # Construct the full path by joining the base dir and the specific model folder
-    full_model_path = os.path.join(model_base_dir, model_name)
+    full_model_path = os.path.join(MODEL_BASE_DIR, model_name)
 
     # 1. Setup Resources
-    model, tokenizer = setup_model_and_tokenizer(full_model_path, device)
+    model, tokenizer = setup_model_and_tokenizer(full_model_path, DEVICE)
     
-    # 2. Prepare Data (Select the first 'number_of_tests' samples)
+    # 2. Prepare Data (Select the first 'NUMBER_OF_TESTS' samples)
     dataset = load_eval_dataset()
-    dataset_subset = dataset.select(range(number_of_tests))
+    dataset_subset = dataset.select(range(NUMBER_OF_TESTS))
 
     # 3. Run Inference
     print(f"Starting evaluation for model: {model_name} | k={k}...")
@@ -262,27 +271,27 @@ def main(model_name, k):
     # 4. Process Results
     results = compile_results(
         accuracies, successive_counts, exact_matches, correct_counts,
-        runtime, model_name, k, number_of_tests
+        runtime, model_name, k, NUMBER_OF_TESTS
     )
 
     # 5. Save & Print
-    if save_results_to_file:
-        save_results_to_json(results, save_filename)
+    if SAVE_RESULTS_TO_FILE:
+        save_results_to_json(results, SAVE_FILENAME)
     print_summary(results)
 
 
 if __name__ == "__main__":
     # Validate that the sequence length math works out
-    if (test_sequence_length - eval_token_count) % k_step_size != 0:
-        print("Error: (test_sequence_length - eval_token_count) must be divisible by k_step_size")
+    if (TEST_SEQUENCE_LENGTH - EVAL_TOKEN_COUNT) % K_STEP_SIZE != 0:
+        print("Error: (TEST_SEQUENCE_LENGTH - EVAL_TOKEN_COUNT) must be divisible by K_STEP_SIZE")
         exit(1)
         
     # Outer Loop: Iterate through every model in the configuration list
-    for model_name in model_list:
+    for model_name in MODEL_LIST:
         print(f"\n{'#'*30}")
         print(f"PROCESSING MODEL: {model_name}")
         print(f"{'#'*30}\n")
         
         # Inner Loop: Iterate through different prompt lengths (k) for this specific model
-        for k in tqdm(range(start_k, end_k + 1, k_step_size)):
+        for k in tqdm(range(START_K, END_K + 1, K_STEP_SIZE)):
             main(model_name, k)
