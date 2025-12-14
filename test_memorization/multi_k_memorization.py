@@ -16,7 +16,8 @@ specific training data. It does this by:
 1. Loading a dataset of known "memorized" examples.
 2. Prompting the model with the first part of a sequence (context).
 3. Checking if the model can exactly reproduce the second part (continuation).
-4. Saving detailed statistics (accuracy, exact match, successive tokens, distribution) to a JSONL file.
+4. Saving detailed statistics (accuracy, exact match, successive tokens, distribution) 
+   AND memory usage (VRAM footprint, Peak Usage) to a JSONL file.
 """
 
 # --- CONFIGURATION ---
@@ -65,6 +66,8 @@ def setup_model_and_tokenizer(model_path, device):
     print(f"Loading model from: {model_path}...")
     
     # Load model in float16 to save memory, mapped to the specified device
+    # Note: Quantized models (bitsandbytes) usually require load_in_8bit=True etc., 
+    # but assuming these are pre-saved quantized checkpoints or handled via config.
     model = GPTNeoXForCausalLM.from_pretrained(
         model_path,
         dtype=torch.float16,        
@@ -162,7 +165,7 @@ def run_inference_loop(dataset, k, model, tokenizer):
     exact_matches = 0
 
     # tqdm provides a progress bar for the loop
-    for sample in tqdm(dataset, leave=False):
+    for sample in tqdm(dataset, leave=False, desc=f"Evaluating k={k}"):
         tokens = sample["tokens"]
         accuracy, exact_match, successive, correct_count = test_memorization(tokens, k, model, tokenizer)
         
@@ -176,7 +179,8 @@ def run_inference_loop(dataset, k, model, tokenizer):
     return accuracies, successive_counts, exact_matches, correct_counts
 
 
-def compile_results(accuracies, successive_counts, exact_matches, correct_counts, runtime, model_name, k, sample_size):
+def compile_results(accuracies, successive_counts, exact_matches, correct_counts, runtime, 
+                    model_name, k, sample_size, model_footprint_gb, peak_memory_gb):
     """Calculates averages, formats the results dictionary, and gathers system info."""
     overall_accuracy = sum(accuracies) / len(accuracies)
     average_successive_correct = sum(successive_counts) / len(successive_counts)
@@ -215,6 +219,11 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
         "exact_match_percentage": round(exact_match_percentage, 4),
         "correct_token_distribution": token_distribution,
         "runtime_seconds": round(runtime, 4),
+        
+        # Memory Stats 
+        "model_footprint_gb": round(model_footprint_gb, 4),
+        "peak_gpu_memory_gb": round(peak_memory_gb, 4),
+
         "timestamp": timestamp,
         # System Metadata
         "torch_version": torch.__version__,
@@ -242,6 +251,10 @@ def print_summary(results):
     print(f"Avg Successive Correct: {results['average_successive_correct_tokens']:.4f} "
           f"(std: {results['successive_correct_standard_deviation']:.4f})")
     print(f"Distribution (0 to {EVAL_TOKEN_COUNT} correct): {results['correct_token_distribution']}")
+    
+    # Print Memory Stats
+    print(f"VRAM: Model Size {results['model_footprint_gb']:.2f} GB | Peak Usage {results['peak_gpu_memory_gb']:.2f} GB")
+    
     print(f"System: PyTorch {results['torch_version']} | CUDA {results['cuda_version']}")
     print(f"Runtime: {results['runtime_seconds']:.4f} seconds")
     print("="*70)
@@ -256,28 +269,51 @@ def main(model_name, k):
     # 1. Setup Resources
     model, tokenizer = setup_model_and_tokenizer(full_model_path, DEVICE)
     
+    # https://huggingface.co/docs/transformers/en/main_classes/model
+    # get_memory_footprint() returns bytes. Convert to GB.
+    model_footprint_gb = model.get_memory_footprint() / (1024 ** 3)
+    
     # 2. Prepare Data (Select the first 'NUMBER_OF_TESTS' samples)
     dataset = load_eval_dataset()
     dataset_subset = dataset.select(range(NUMBER_OF_TESTS))
 
     # 3. Run Inference
     print(f"Starting evaluation for model: {model_name} | k={k}...")
+    
+    # Reset Peak Memory Tracking
+    if torch.cuda.is_available():
+        torch.cuda.reset_peak_memory_stats(DEVICE)
+        torch.cuda.empty_cache() # Clean cache to get accurate peak reading for this run
+
     start_time = time.time()
     
     accuracies, successive_counts, exact_matches, correct_counts = run_inference_loop(dataset_subset, k, model, tokenizer)
     
     runtime = time.time() - start_time
 
+    # Capture Peak Memory
+    peak_memory_gb = 0.0
+    if torch.cuda.is_available():
+        # max_memory_allocated returns the peak memory used by tensors since the last reset
+        peak_memory_gb = torch.cuda.max_memory_allocated(DEVICE) / (1024 ** 3)
+
     # 4. Process Results
     results = compile_results(
         accuracies, successive_counts, exact_matches, correct_counts,
-        runtime, model_name, k, NUMBER_OF_TESTS
+        runtime, model_name, k, NUMBER_OF_TESTS,
+        model_footprint_gb, peak_memory_gb
     )
 
     # 5. Save & Print
     if SAVE_RESULTS_TO_FILE:
         save_results_to_json(results, SAVE_FILENAME)
     print_summary(results)
+
+    # https://discuss.pytorch.org/t/cuda-memory-not-released-by-torch-cuda-empty-cache/129913 
+    # Delete model and clear cache to free memory for the next iteration/model
+    del model
+    del tokenizer
+    torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":
