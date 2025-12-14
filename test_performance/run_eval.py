@@ -21,7 +21,7 @@ MODEL_LIST = [
 ]
 
 # 4. Tasks to run
-TASKS = "hellaswag"
+TASKS = "hellaswag,wikitext,gsm8k"
 
 # --- EXECUTION ---
 

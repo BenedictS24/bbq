@@ -1,1 +1,4 @@
 .DS_Store
+models/
+test_memorization/pythia-12b_memorized-evals/
+test_performance/lm-evaluation-harness/
