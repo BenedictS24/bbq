@@ -6,38 +6,38 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import re
 
-# --- Konfiguration ---
+# --- Configuration ---
 BASE_DIR = '/Users/benedict/UHH/bbq/data/model_eval_results'
 OUTPUT_DIR = '/Users/benedict/UHH/bbq/data/plots'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Definition der zu extrahierenden Metriken pro Task
+# Definition of metrics to extract per task
 METRICS_CONFIG = {
     "gsm8k": ("exact_match,strict-match", "GSM8K (Exact Match)", True),
     "hellaswag": ("acc_norm,none", "Hellaswag (Acc Norm)", True),
-    "wikitext": ("word_perplexity,none", "Wikitext (Perplexity)", False) # False = Niedriger ist besser
+    "wikitext": ("word_perplexity,none", "Wikitext (Perplexity)", False) # False = Lower is better
 }
 
 def clean_model_label(folder_name):
     """
-    Erstellt ein sauberes Label aus dem Ordnernamen.
+    Creates a clean label from the folder name.
     Input: pythia-12b-duped-step143000-nf4bit_14-12-2025_14-34-03
     Output: Pythia 12B Deduped nf4bit
     """
-    # 1. Datum/Zeitstempel entfernen
+    # 1. Remove date/timestamp
     name = re.split(r'_\d{2}-\d{2}-\d{4}', folder_name)[0]
     
-    # 2. "step..." entfernen
+    # 2. Remove "step..."
     name = re.sub(r'-step\d+', '', name)
     
-    # 3. Basisnamen ersetzen
+    # 3. Replace base name
     if "pythia-12b-duped" in name:
         name = name.replace("pythia-12b-duped", "Pythia 12B Deduped")
     
-    # 4. Bindestriche durch Leerzeichen
+    # 4. Replace hyphens with spaces
     name = name.replace("-", " ")
     
-    # Whitespace bereinigen
+    # Clean up whitespace
     name = re.sub(r'\s+', ' ', name).strip()
     
     return name
@@ -46,7 +46,7 @@ def load_eval_data(base_dir):
     data = []
     
     if not os.path.exists(base_dir):
-        print(f"Warnung: Verzeichnis {base_dir} nicht gefunden.")
+        print(f"Warning: Directory {base_dir} not found.")
         return pd.DataFrame()
 
     model_dirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
@@ -79,16 +79,16 @@ def load_eval_data(base_dir):
                             })
                             
         except Exception as e:
-            print(f"Fehler beim Lesen von {target_file}: {e}")
+            print(f"Error reading {target_file}: {e}")
 
     return pd.DataFrame(data)
 
 def plot_comparison(df):
     if df.empty:
-        print("Keine Daten zum Plotten gefunden.")
+        print("No data found to plot.")
         return
 
-    # Style und Font-Größe global setzen für bessere Lesbarkeit
+    # Set style and font size globally for better readability
     sns.set_theme(style="whitegrid", rc={"font.size":11, "axes.titlesize":14, "axes.labelsize":12})
     
     tasks = df['Task'].unique()
@@ -113,32 +113,30 @@ def plot_comparison(df):
             ax=ax, 
             palette=palette, 
             dodge=False,
-            legend=False  # Legende ausblenden, da Labels an der X-Achse sind
+            legend=False  # Hide legend since labels are on the X-axis
         )
         
-        # --- HIER IST DER FIX ---
-        # pad=25 schiebt den Titel nach oben
+        # pad=25 pushes the title up
         ax.set_title(task, fontsize=14, fontweight='bold', pad=25)
         
         ax.set_xlabel("")
         ax.set_ylabel("Score / Value")
         
-        # Labels rotieren
+        # Rotate labels
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
         
-        # Visueller Hinweis (Höher/Niedriger)
-        # Positionierung bei y=1.02 bleibt, aber der Titel ist durch pad=25 nun weiter oben
+        # Visual indicator (Higher/Lower)
         is_higher_better = task_data.iloc[0]['Higher_Is_Better']
-        direction_text = "↑ (Höher ist besser)" if is_higher_better else "↓ (Niedriger ist besser)"
+        direction_text = "↑ (Higher is better)" if is_higher_better else "↓ (Lower is better)"
         
         ax.text(0.5, 1.02, direction_text, 
                 transform=ax.transAxes, 
                 ha='center', 
                 fontsize=10, 
-                color='#555555', # Etwas dunkleres Grau für bessere Lesbarkeit
+                color='#555555', # Slightly darker gray for better readability
                 fontweight='medium')
         
-        # Werte auf den Balken anzeigen
+        # Show values on bars
         for container in ax.containers:
             ax.bar_label(container, fmt='%.4f', padding=3)
 
@@ -146,20 +144,20 @@ def plot_comparison(df):
     
     output_path = os.path.join(OUTPUT_DIR, 'model_eval_comparison.png')
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"Plot gespeichert unter: {output_path}")
+    print(f"Plot saved at: {output_path}")
     plt.close()
 
 def main():
-    print("Lade Model Eval Daten...")
+    print("Loading Model Eval Data...")
     df = load_eval_data(BASE_DIR)
     
     if not df.empty:
-        print(f"Gefundene Datenpunkte: {len(df)}")
-        print("Modelle:", df['Model'].unique())
-        print("Erstelle Plot...")
+        print(f"Data points found: {len(df)}")
+        print("Models:", df['Model'].unique())
+        print("Creating plot...")
         plot_comparison(df)
     else:
-        print("Konnte keine Daten extrahieren.")
+        print("Could not extract any data.")
 
 if __name__ == "__main__":
     main()
