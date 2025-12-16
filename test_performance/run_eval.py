@@ -22,7 +22,7 @@ MODEL_LIST = [
 # https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/tasks/README.md
 # https://huggingface.co/docs/leaderboards/en/open_llm_leaderboard/archive 
 # 4. Tasks to run
-TASKS = "arc_challenge,hellaswag,mmlu_pro,truthfulqa_mc1,winogrande,gsm8k"
+TASKS = "arc_challenge,hellaswag,mmlu,truthfulqa_mc1,winogrande,gsm8k"
 
 # --- EXECUTION ---
 
