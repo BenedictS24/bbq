@@ -11,11 +11,15 @@ BASE_DIR = '/Users/benedict/UHH/bbq/data/model_eval_results'
 OUTPUT_DIR = '/Users/benedict/UHH/bbq/data/plots'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
-# Definition of metrics to extract per task
+# Definition of metrics to extract per task based on your JSON structure
+# Format: Task Key in JSON -> (Metric Key in JSON, Display Name, Higher is better?)
 METRICS_CONFIG = {
+    "arc_challenge": ("acc_norm,none", "ARC Challenge (Acc Norm)", True),
     "gsm8k": ("exact_match,strict-match", "GSM8K (Exact Match)", True),
     "hellaswag": ("acc_norm,none", "Hellaswag (Acc Norm)", True),
-    "wikitext": ("word_perplexity,none", "Wikitext (Perplexity)", False) # False = Lower is better
+    "mmlu": ("acc,none", "MMLU (Avg Acc)", True),
+    "truthfulqa_mc1": ("acc,none", "TruthfulQA (Acc)", True),
+    "winogrande": ("acc,none", "Winogrande (Acc)", True)
 }
 
 def clean_model_label(folder_name):
@@ -24,7 +28,7 @@ def clean_model_label(folder_name):
     Input: pythia-12b-duped-step143000-nf4bit_14-12-2025_14-34-03
     Output: Pythia 12B Deduped nf4bit
     """
-    # 1. Remove date/timestamp
+    # 1. Remove date/timestamp (matches _DD-MM-YYYY...)
     name = re.split(r'_\d{2}-\d{2}-\d{4}', folder_name)[0]
     
     # 2. Remove "step..."
@@ -66,10 +70,13 @@ def load_eval_data(base_dir):
             
             model_label = clean_model_label(model_dir)
             
+            # Check if "results" exists in the JSON
             if "results" in results_json:
-                for task, (metric_key, display_name, higher_better) in METRICS_CONFIG.items():
-                    if task in results_json["results"]:
-                        val = results_json["results"][task].get(metric_key)
+                for task_key, (metric_key, display_name, higher_better) in METRICS_CONFIG.items():
+                    # Check if the specific task exists in the results object
+                    if task_key in results_json["results"]:
+                        val = results_json["results"][task_key].get(metric_key)
+                        
                         if val is not None:
                             data.append({
                                 "Model": model_label,
@@ -94,7 +101,8 @@ def plot_comparison(df):
     tasks = df['Task'].unique()
     num_tasks = len(tasks)
     
-    fig, axes = plt.subplots(1, num_tasks, figsize=(6 * num_tasks, 6), sharey=False)
+    # Calculate figure size: width based on number of tasks
+    fig, axes = plt.subplots(1, num_tasks, figsize=(5 * num_tasks, 6), sharey=False)
     
     if num_tasks == 1:
         axes = [axes]
@@ -113,14 +121,14 @@ def plot_comparison(df):
             ax=ax, 
             palette=palette, 
             dodge=False,
-            legend=False  # Hide legend since labels are on the X-axis
+            legend=False 
         )
         
-        # pad=25 pushes the title up
+        # Title with padding
         ax.set_title(task, fontsize=14, fontweight='bold', pad=25)
         
         ax.set_xlabel("")
-        ax.set_ylabel("Score / Value")
+        ax.set_ylabel("Score")
         
         # Rotate labels
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
@@ -133,7 +141,7 @@ def plot_comparison(df):
                 transform=ax.transAxes, 
                 ha='center', 
                 fontsize=10, 
-                color='#555555', # Slightly darker gray for better readability
+                color='#555555', 
                 fontweight='medium')
         
         # Show values on bars
@@ -153,11 +161,12 @@ def main():
     
     if not df.empty:
         print(f"Data points found: {len(df)}")
-        print("Models:", df['Model'].unique())
+        print("Models found:", df['Model'].unique())
+        print("Tasks found:", df['Task'].unique())
         print("Creating plot...")
         plot_comparison(df)
     else:
-        print("Could not extract any data.")
+        print("Could not extract any data. Please check if 'results_*.json' files exist in subfolders of model_eval_results.")
 
 if __name__ == "__main__":
     main()
