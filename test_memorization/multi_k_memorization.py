@@ -190,7 +190,7 @@ def run_inference_loop(dataset, k, model, tokenizer):
 
 
 def compile_results(accuracies, successive_counts, exact_matches, correct_counts, runtime, 
-                    model_name, k, sample_size, model_footprint_gb, peak_memory_gb):
+                    model_name, k, sample_size, model_footprint_byte, peak_memory_byte):
     """Calculates averages, formats the results dictionary, and gathers system info."""
     overall_accuracy = sum(accuracies) / len(accuracies)
     average_successive_correct = sum(successive_counts) / len(successive_counts)
@@ -231,8 +231,8 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
         "runtime_seconds": round(runtime, 4),
         
         # Memory Stats 
-        "model_footprint_gb": round(model_footprint_gb, 4),
-        "peak_gpu_memory_gb": round(peak_memory_gb, 4),
+        "model_footprint_byte": int(model_footprint_byte),
+        "peak_gpu_memory_byte": int(peak_memory_byte),
 
         "timestamp": timestamp,
         # System Metadata
@@ -263,7 +263,7 @@ def print_summary(results):
     print(f"Distribution (0 to {EVAL_TOKEN_COUNT} correct): {results['correct_token_distribution']}")
     
     # Print Memory Stats
-    print(f"VRAM: Model Size {results['model_footprint_gb']:.2f} GB | Peak Usage {results['peak_gpu_memory_gb']:.2f} GB")
+    print(f"VRAM: Model Size {results['model_footprint_byte']} byte | Peak Usage {results['peak_gpu_memory_byte']} byte")
     
     print(f"System: PyTorch {results['torch_version']} | CUDA {results['cuda_version']}")
     print(f"Runtime: {results['runtime_seconds']:.4f} seconds")
@@ -281,7 +281,7 @@ def main(model_name, k):
     
     # https://huggingface.co/docs/transformers/en/main_classes/model
     # get_memory_footprint() returns bytes. Convert to GB.
-    model_footprint_gb = model.get_memory_footprint() / (1024 ** 3)
+    model_footprint_byte = model.get_memory_footprint()
     
     # 2. Prepare Data (Select the first 'NUMBER_OF_TESTS' samples)
     dataset = load_eval_dataset()
@@ -302,16 +302,16 @@ def main(model_name, k):
     runtime = time.time() - start_time
 
     # Capture Peak Memory
-    peak_memory_gb = 0.0
+    peak_memory_byte = 0.0
     if torch.cuda.is_available():
         # max_memory_allocated returns the peak memory used by tensors since the last reset
-        peak_memory_gb = torch.cuda.max_memory_allocated(DEVICE) / (1024 ** 3)
+        peak_memory_byte = torch.cuda.max_memory_allocated(DEVICE)
 
     # 4. Process Results
     results = compile_results(
         accuracies, successive_counts, exact_matches, correct_counts,
         runtime, model_name, k, NUMBER_OF_TESTS,
-        model_footprint_gb, peak_memory_gb
+        model_footprint_byte, peak_memory_byte
     )
 
     # 5. Save & Print
