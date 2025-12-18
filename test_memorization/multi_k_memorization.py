@@ -31,7 +31,7 @@ MODEL_LIST = [
     "pythia-12b-duped-step143000-fp4bit",
     "pythia-12b-duped-step143000-nf4bit"
 ]
-CONTEXT_TOKEN_POSITION = "start_of_sequence"  # Where the target tokens are located in the sequence ("start_of_sequence" or "latest_possible")
+CONTEXT_TOKEN_POSITION = "end_of_sequence"  # Where the target tokens are located in the sequence ("start_of_sequence" or "end_of_sequence")
 DEVICE = "cuda:0"          # GPU device to use
 EVAL_TOKEN_COUNT = 16      # How many tokens the model should generate (the target continuation length)
 K_STEP_SIZE = 4            # Step size for the loop over 'k' (context length)
@@ -144,7 +144,7 @@ def test_memorization(test_sequence, k, model, tokenizer):
     Splits a sequence into a prompt (length k) and a target (expected result).
     Feeds the prompt to the model and compares the output.
     """
-    if CONTEXT_TOKEN_POSITION == "latest_possible": 
+    if CONTEXT_TOKEN_POSITION == "end_of_sequence": 
         # Calculate where to split the sequence based on how many tokens we want to predict
         separation_index = len(test_sequence) - EVAL_TOKEN_COUNT
         # The Prompt: The 'k' tokens immediately preceding the target area
@@ -161,7 +161,7 @@ def test_memorization(test_sequence, k, model, tokenizer):
         expected_tokens = test_sequence[separation_index:separation_index + EVAL_TOKEN_COUNT]
 
     else:
-        raise ValueError("Invalid CONTEXT_TOKEN_POSITION value. Use 'start_of_sequence' or 'latest_possible'.")
+        raise ValueError("Invalid CONTEXT_TOKEN_POSITION value. Use 'start_of_sequence' or 'end_of_sequence'.")
     
     input_tokens = torch.tensor([prompt_tokens]).to(DEVICE)
     
