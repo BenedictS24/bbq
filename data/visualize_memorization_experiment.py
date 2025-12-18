@@ -6,7 +6,7 @@ import os
 
 # --- Configuration ---
 INPUT_DIR = "/Users/benedict/UHH/bbq/data/experiment_data"
-INPUT_FILE = "mem_eval_pythia-12b-duped-step143000_plus_3_others_k4-48_start_of_sequence_18122025_0153.jsonl"
+INPUT_FILE = "mem_eval_pythia-12b-duped-step143000_plus_3_others_k4-48_end_of_sequence_18122025_1314.jsonl"
 FILE_PATH = os.path.join(INPUT_DIR, INPUT_FILE)
 
 OUTPUT_DIR = "plots"
