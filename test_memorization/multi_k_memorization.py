@@ -7,7 +7,7 @@ from datetime import datetime
 from tqdm import tqdm
 import numpy as np
 import time
-
+import gc
 """
 Memorization Evaluation Script
 
@@ -39,11 +39,32 @@ START_K = 4                # Minimum context length (k) to test
 END_K = 48                 # Maximum context length (k) to test
 NUMBER_OF_TESTS = 1000     # How many samples from the dataset to evaluate per setting
 SAVE_RESULTS_TO_FILE = True
-SAVE_FILENAME = "/home/bstahl/bbq/data/experiment_data/updated_k4-48_fp16-8bit-fp4-nf4_memorization_results.jsonl"
+SAVE_DIR = "/home/bstahl/bbq/data/experiment_data/memorization_results/"
 TEST_SEQUENCE_LENGTH = 64  # Total length of the sample (Context + Target)
-
+RANDOM_SEED = 42         # For reproducibility
 
 # --- Helper Functions ---
+
+def generate_filename():
+    """
+    Generates an abbreviated filename: 
+    memorization_eval + [FirstModelName] + [Count] + [k-range] + [position] + [timestamp]
+    """
+    timestamp = datetime.now().strftime("%d%m%Y_%H%M")
+    
+    # Get the name of the first model and count the rest
+    first_model = MODEL_LIST[0].split('/')[-1]
+    model_count = len(MODEL_LIST)
+    
+    # Abbreviated model info
+    model_info = f"{first_model}_plus_{model_count-1}_others" if model_count > 1 else first_model
+    
+    # Construct the final string
+    filename = (
+        f"mem_eval_{model_info}_k{START_K}-{END_K}_"
+        f"{CONTEXT_TOKEN_POSITION}_{timestamp}.jsonl"
+    )
+    return os.path.join(SAVE_DIR, filename)
 
 def load_eval_dataset():
     """
@@ -219,6 +240,7 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
         "k": k,
         "context_token_position": CONTEXT_TOKEN_POSITION,
         "sample_size": sample_size,
+        "random_seed": RANDOM_SEED,
         "overall_accuracy": round(overall_accuracy, 4),
         "average_correct_tokens": round(average_correct_tokens, 4),
         "average_successive_correct_tokens": round(average_successive_correct, 4),
@@ -283,12 +305,8 @@ def main(model_name, k):
     # https://huggingface.co/docs/transformers/en/main_classes/model
     # get_memory_footprint() returns bytes. Convert to GB.
     model_footprint_byte = model.get_memory_footprint()
-    
-    # 2. Prepare Data (Select the first 'NUMBER_OF_TESTS' samples)
-    dataset = load_eval_dataset()
-    dataset_subset = dataset.select(range(NUMBER_OF_TESTS))
 
-    # 3. Run Inference
+    # 2. Run Inference
     print(f"Starting evaluation for model: {model_name} | k={k}...")
     
     # Reset Peak Memory Tracking
@@ -324,10 +342,15 @@ def main(model_name, k):
     # Delete model and clear cache to free memory for the next iteration/model
     del model
     del tokenizer
+    gc.collect()
     torch.cuda.empty_cache()
 
 
 if __name__ == "__main__":
+    SAVE_FILENAME = generate_filename()
+    
+    dataset = load_eval_dataset()
+    dataset_subset = dataset.shuffle(seed=RANDOM_SEED).select(range(NUMBER_OF_TESTS))
     # Validate that the sequence length math works out
     if (TEST_SEQUENCE_LENGTH - EVAL_TOKEN_COUNT) % K_STEP_SIZE != 0:
         print("Error: (TEST_SEQUENCE_LENGTH - EVAL_TOKEN_COUNT) must be divisible by K_STEP_SIZE")
