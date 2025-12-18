@@ -31,7 +31,7 @@ MODEL_LIST = [
     "pythia-12b-duped-step143000-fp4bit",
     "pythia-12b-duped-step143000-nf4bit"
 ]
-SEED_TOKEN_POSITION = "start_of_sequence"  # Where the target tokens are located in the sequence ("start_of_sequence" or "latest_possible")
+CONTEXT_TOKEN_POSITION = "start_of_sequence"  # Where the target tokens are located in the sequence ("start_of_sequence" or "latest_possible")
 DEVICE = "cuda:0"          # GPU device to use
 EVAL_TOKEN_COUNT = 16      # How many tokens the model should generate (the target continuation length)
 K_STEP_SIZE = 4            # Step size for the loop over 'k' (context length)
@@ -123,7 +123,7 @@ def test_memorization(test_sequence, k, model, tokenizer):
     Splits a sequence into a prompt (length k) and a target (expected result).
     Feeds the prompt to the model and compares the output.
     """
-    if SEED_TOKEN_POSITION == "latest_possible": 
+    if CONTEXT_TOKEN_POSITION == "latest_possible": 
         # Calculate where to split the sequence based on how many tokens we want to predict
         separation_index = len(test_sequence) - EVAL_TOKEN_COUNT
         # The Prompt: The 'k' tokens immediately preceding the target area
@@ -131,7 +131,7 @@ def test_memorization(test_sequence, k, model, tokenizer):
         # The Target: The actual tokens that followed the prompt in the training data
         expected_tokens = test_sequence[separation_index:]
 
-    elif SEED_TOKEN_POSITION == "start_of_sequence":
+    elif CONTEXT_TOKEN_POSITION == "start_of_sequence":
         # The Prompt: The first 'k' tokens of the sequence
         separation_index = k
         # The Prompt
@@ -140,7 +140,7 @@ def test_memorization(test_sequence, k, model, tokenizer):
         expected_tokens = test_sequence[separation_index:separation_index + EVAL_TOKEN_COUNT]
 
     else:
-        raise ValueError("Invalid SEED_TOKEN_POSITION value. Use 'start_of_sequence' or 'latest_possible'.")
+        raise ValueError("Invalid CONTEXT_TOKEN_POSITION value. Use 'start_of_sequence' or 'latest_possible'.")
     
     input_tokens = torch.tensor([prompt_tokens]).to(DEVICE)
     
@@ -217,6 +217,7 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
     results = {
         "model_name": model_name,
         "k": k,
+        "context_token_position": CONTEXT_TOKEN_POSITION,
         "sample_size": sample_size,
         "overall_accuracy": round(overall_accuracy, 4),
         "average_correct_tokens": round(average_correct_tokens, 4),
