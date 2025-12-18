@@ -39,7 +39,7 @@ START_K = 4                # Minimum context length (k) to test
 END_K = 48                 # Maximum context length (k) to test
 NUMBER_OF_TESTS = 1000     # How many samples from the dataset to evaluate per setting
 SAVE_RESULTS_TO_FILE = True
-SAVE_DIR = "/home/bstahl/bbq/data/experiment_data/memorization_results/"
+SAVE_DIR = "/home/bstahl/bbq/data/experiment_data/"
 TEST_SEQUENCE_LENGTH = 64  # Total length of the sample (Context + Target)
 RANDOM_SEED = 42         # For reproducibility
 
