@@ -8,6 +8,9 @@ from tqdm import tqdm
 import numpy as np
 import time
 import gc
+from rich.console import Console
+from rich.table import Table
+from rich import box
 """
 Memorization Evaluation Script
 
@@ -33,11 +36,9 @@ MODEL_LIST = [
 ]
 CONTEXT_TOKEN_POSITION = "end_of_sequence"  # Where the target tokens are located in the sequence ("start_of_sequence" or "end_of_sequence")
 DEVICE = "cuda:0"          # GPU device to use
-EVAL_TOKEN_COUNT = 16      # How many tokens the model should generate (the target continuation length)
-K_STEP_SIZE = 4            # Step size for the loop over 'k' (context length)
-START_K = 4                # Minimum context length (k) to test
-END_K = 48                 # Maximum context length (k) to test
-NUMBER_OF_TESTS = 1000     # How many samples from the dataset to evaluate per setting
+K = 32                     # context length (k) to test
+EVAL_TOKEN_COUNT = 32      # Number of tokens to evaluate the model on (the target length)
+NUMBER_OF_TESTS = 6000     # How many samples from the dataset to evaluate per setting
 SAVE_RESULTS_TO_FILE = True
 SAVE_DIR = "/home/bstahl/bbq/data/experiment_data/"
 TEST_SEQUENCE_LENGTH = 64  # Total length of the sample (Context + Target)
@@ -61,8 +62,8 @@ def generate_filename():
     
     # Construct the final string
     filename = (
-        f"mem_eval_{model_info}_k{START_K}-{END_K}_"
-        f"{CONTEXT_TOKEN_POSITION}_{timestamp}.jsonl"
+        f"mem_eval_{model_info}_k{K}_{NUMBER_OF_TESTS}_"
+        f"{timestamp}.jsonl"
     )
     return os.path.join(SAVE_DIR, filename)
 
@@ -144,24 +145,14 @@ def test_memorization(test_sequence, k, model, tokenizer):
     Splits a sequence into a prompt (length k) and a target (expected result).
     Feeds the prompt to the model and compares the output.
     """
-    if CONTEXT_TOKEN_POSITION == "end_of_sequence": 
-        # Calculate where to split the sequence based on how many tokens we want to predict
-        separation_index = len(test_sequence) - EVAL_TOKEN_COUNT
-        # The Prompt: The 'k' tokens immediately preceding the target area
-        prompt_tokens = test_sequence[separation_index-k : separation_index]
-        # The Target: The actual tokens that followed the prompt in the training data
-        expected_tokens = test_sequence[separation_index:]
 
-    elif CONTEXT_TOKEN_POSITION == "start_of_sequence":
-        # The Prompt: The first 'k' tokens of the sequence
-        separation_index = k
-        # The Prompt
-        prompt_tokens = test_sequence[:separation_index]
-        # The Target
-        expected_tokens = test_sequence[separation_index:separation_index + EVAL_TOKEN_COUNT]
+    # The Prompt: The first 'k' tokens of the sequence
+    separation_index = k
+    # The Prompt
+    prompt_tokens = test_sequence[:separation_index]
+    # The Target
+    expected_tokens = test_sequence[separation_index:separation_index + EVAL_TOKEN_COUNT]
 
-    else:
-        raise ValueError("Invalid CONTEXT_TOKEN_POSITION value. Use 'start_of_sequence' or 'end_of_sequence'.")
     
     input_tokens = torch.tensor([prompt_tokens]).to(DEVICE)
     
@@ -277,20 +268,31 @@ def save_results_to_json(results, filename):
 
 
 def print_summary(results):
-    print("="*70)
-    print(f"Using {results['model_name']}: Overall memorization accuracy for k={results['k']} "
-          f"over {results['sample_size']} tests: \n"
-          f"      {results['overall_accuracy']:.4f} (std: {results['accuracy_standard_deviation']:.4f})")
-    print(f"Avg Successive Correct: {results['average_successive_correct_tokens']:.4f} "
-          f"(std: {results['successive_correct_standard_deviation']:.4f})")
-    print(f"Distribution (0 to {EVAL_TOKEN_COUNT} correct): {results['correct_token_distribution']}")
+    console = Console()
     
-    # Print Memory Stats
-    print(f"VRAM: Model Size {results['model_footprint_byte']} byte | Peak Usage {results['peak_gpu_memory_byte']} byte")
+    # Create a single, compact table
+    table = Table(
+        title=f"[bold blue]Results: {results['model_name']}[/bold blue]", 
+        box=box.SIMPLE_HEAD,
+        show_lines=False
+    )
+
+    table.add_column("Metric", style="cyan")
+    table.add_column("Value", justify="right", style="green")
+
+    # Grouped Rows
+    table.add_row("Accuracy", f"{results['overall_accuracy']:.2%} (±{results['accuracy_standard_deviation']:.3f})")
+    table.add_row("Successive Tokens", f"{results['average_successive_correct_tokens']:.2f}")
+    table.add_row("Exact Match", f"{results['exact_match_percentage']:.1%}")
     
-    print(f"System: PyTorch {results['torch_version']} | CUDA {results['cuda_version']}")
-    print(f"Runtime: {results['runtime_seconds']:.4f} seconds")
-    print("="*70)
+    table.add_section() # Adds a divider line
+    
+    # Resource Usage
+    to_gb = lambda b: b / (1024**3)
+    table.add_row("Peak VRAM", f"{to_gb(results['peak_gpu_memory_byte']):.2f} GB")
+    table.add_row("Runtime", f"{results['runtime_seconds']:.1f}s")
+
+    console.print(table)
 
 
 # --- Main Logic ---
@@ -352,16 +354,10 @@ if __name__ == "__main__":
     dataset = load_eval_dataset()
     dataset_subset = dataset.shuffle(seed=RANDOM_SEED).select(range(NUMBER_OF_TESTS))
     # Validate that the sequence length math works out
-    if (TEST_SEQUENCE_LENGTH - EVAL_TOKEN_COUNT) % K_STEP_SIZE != 0:
-        print("Error: (TEST_SEQUENCE_LENGTH - EVAL_TOKEN_COUNT) must be divisible by K_STEP_SIZE")
-        exit(1)
-        
     # Outer Loop: Iterate through every model in the configuration list
     for model_name in MODEL_LIST:
         print(f"\n{'#'*30}")
         print(f"PROCESSING MODEL: {model_name}")
         print(f"{'#'*30}\n")
         
-        # Inner Loop: Iterate through different prompt lengths (k) for this specific model
-        for k in tqdm(range(START_K, END_K + 1, K_STEP_SIZE)):
-            main(model_name, k)
+        main(model_name, K)
