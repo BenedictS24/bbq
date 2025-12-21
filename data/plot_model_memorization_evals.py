@@ -11,8 +11,15 @@ BASE_DIR = '/Users/benedict/UHH/bbq/data/model_eval_results'
 OUTPUT_DIR = '/Users/benedict/UHH/bbq/data/plots'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+# Updated palette keys to match the actual cleaned model labels
+CUSTOM_PALETTE = {
+    "Pythia 12B Deduped": "#2ecc71",           # FP16 (Baseline)
+    "Pythia 12B Deduped 8bit": "#3498db",      # Int8 (8-bit)
+    "Pythia 12B Deduped nf4bit": "#9b59b6",    # NF4 (4-bit Normal Float)
+    "Pythia 12B Deduped fp4bit": "#e74c3c"     # FP4 (4-bit Float)
+}
+
 # Definition of metrics to extract per task based on your JSON structure
-# Format: Task Key in JSON -> (Metric Key in JSON, Display Name, Higher is better?)
 METRICS_CONFIG = {
     "arc_challenge": ("acc_norm,none", "ARC Challenge (Acc Norm)", True),
     "gsm8k": ("exact_match,strict-match", "GSM8K (Exact Match)", True),
@@ -23,60 +30,37 @@ METRICS_CONFIG = {
 }
 
 def clean_model_label(folder_name):
-    """
-    Creates a clean label from the folder name.
-    Input: pythia-12b-duped-step143000-nf4bit_14-12-2025_14-34-03
-    Output: Pythia 12B Deduped nf4bit
-    """
     # 1. Remove date/timestamp (matches _DD-MM-YYYY...)
     name = re.split(r'_\d{2}-\d{2}-\d{4}', folder_name)[0]
-    
     # 2. Remove "step..."
     name = re.sub(r'-step\d+', '', name)
-    
     # 3. Replace base name
     if "pythia-12b-duped" in name:
         name = name.replace("pythia-12b-duped", "Pythia 12B Deduped")
-    
     # 4. Replace hyphens with spaces
     name = name.replace("-", " ")
-    
-    # Clean up whitespace
-    name = re.sub(r'\s+', ' ', name).strip()
-    
-    return name
+    return re.sub(r'\s+', ' ', name).strip()
 
 def load_eval_data(base_dir):
     data = []
-    
     if not os.path.exists(base_dir):
         print(f"Warning: Directory {base_dir} not found.")
         return pd.DataFrame()
 
     model_dirs = [d for d in os.listdir(base_dir) if os.path.isdir(os.path.join(base_dir, d))]
-    
     for model_dir in model_dirs:
         full_model_path = os.path.join(base_dir, model_dir)
         json_files = glob.glob(os.path.join(full_model_path, "results_*.json"))
-        
-        if not json_files:
-            continue
-            
+        if not json_files: continue
         target_file = json_files[0]
-        
         try:
             with open(target_file, 'r') as f:
                 results_json = json.load(f)
-            
             model_label = clean_model_label(model_dir)
-            
-            # Check if "results" exists in the JSON
             if "results" in results_json:
                 for task_key, (metric_key, display_name, higher_better) in METRICS_CONFIG.items():
-                    # Check if the specific task exists in the results object
                     if task_key in results_json["results"]:
                         val = results_json["results"][task_key].get(metric_key)
-                        
                         if val is not None:
                             data.append({
                                 "Model": model_label,
@@ -84,89 +68,77 @@ def load_eval_data(base_dir):
                                 "Value": float(val),
                                 "Higher_Is_Better": higher_better
                             })
-                            
         except Exception as e:
             print(f"Error reading {target_file}: {e}")
-
     return pd.DataFrame(data)
 
 def plot_comparison(df):
-    if df.empty:
-        print("No data found to plot.")
-        return
-
-    # Set style and font size globally for better readability
-    sns.set_theme(style="whitegrid", rc={"font.size":11, "axes.titlesize":14, "axes.labelsize":12})
-    
+    if df.empty: return
+    sns.set_theme(style="whitegrid", rc={"font.size":11})
     tasks = df['Task'].unique()
     num_tasks = len(tasks)
-    
-    # Calculate figure size: width based on number of tasks
-    fig, axes = plt.subplots(1, num_tasks, figsize=(5 * num_tasks, 6), sharey=False)
-    
-    if num_tasks == 1:
-        axes = [axes]
+    fig, axes = plt.subplots(1, num_tasks, figsize=(5 * num_tasks, 6))
+    if num_tasks == 1: axes = [axes]
 
     df = df.sort_values(by="Model")
-    palette = sns.color_palette("viridis", n_colors=len(df['Model'].unique()))
 
     for ax, task in zip(axes, tasks):
         task_data = df[df['Task'] == task]
-        
-        sns.barplot(
-            data=task_data, 
-            x="Model", 
-            y="Value", 
-            hue="Model", 
-            ax=ax, 
-            palette=palette, 
-            dodge=False,
-            legend=False 
-        )
-        
-        # Title with padding
-        ax.set_title(task, fontsize=14, fontweight='bold', pad=25)
-        
+        sns.barplot(data=task_data, x="Model", y="Value", hue="Model", ax=ax, palette=CUSTOM_PALETTE, dodge=False, legend=False)
+        ax.set_title(task, fontsize=12, fontweight='bold', pad=20)
         ax.set_xlabel("")
-        ax.set_ylabel("Score")
-        
-        # Rotate labels
         ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
-        
-        # Visual indicator (Higher/Lower)
-        is_higher_better = task_data.iloc[0]['Higher_Is_Better']
-        direction_text = "↑ (Higher is better)" if is_higher_better else "↓ (Lower is better)"
-        
-        ax.text(0.5, 1.02, direction_text, 
-                transform=ax.transAxes, 
-                ha='center', 
-                fontsize=10, 
-                color='#555555', 
-                fontweight='medium')
-        
-        # Show values on bars
         for container in ax.containers:
             ax.bar_label(container, fmt='%.4f', padding=3)
 
     plt.tight_layout()
-    
     output_path = os.path.join(OUTPUT_DIR, 'model_eval_comparison.png')
     plt.savefig(output_path, dpi=300, bbox_inches='tight')
-    print(f"Plot saved at: {output_path}")
+    plt.close()
+
+def plot_relative_comparison(df):
+    if df.empty: return
+    models = sorted(df['Model'].unique())
+    baseline_model = models[0]
+    pivot_df = df.pivot(index='Task', columns='Model', values='Value')
+    rel_df = pivot_df.div(pivot_df[baseline_model], axis=0) - 1
+    rel_df = rel_df * 100
+    plot_df = rel_df.reset_index().melt(id_vars='Task', var_name='Model', value_name='RelDiff')
+    plot_df = plot_df[plot_df['Model'] != baseline_model]
+
+    if plot_df.empty:
+        print("Not enough models to create a relative comparison.")
+        return
+
+    plt.figure(figsize=(12, 7))
+    sns.set_theme(style="whitegrid")
+    ax = sns.barplot(data=plot_df, x='Task', y='RelDiff', hue='Model', palette=CUSTOM_PALETTE)
+    
+    plt.axhline(0, color='black', linewidth=1.5, linestyle='--')
+    plt.title(f'Relative Performance Change (Baseline: {baseline_model})', fontsize=16, fontweight='bold', pad=20)
+    plt.ylabel('Percentage Difference (%)', fontsize=12)
+    plt.xlabel('Evaluation Task', fontsize=12)
+    plt.xticks(rotation=15)
+    plt.legend(title="Comparison Models", bbox_to_anchor=(1.05, 1), loc='upper left')
+    
+    for container in ax.containers:
+        ax.bar_label(container, fmt='%.1f%%', padding=3, fontsize=9)
+
+    plt.tight_layout()
+    output_path = os.path.join(OUTPUT_DIR, 'model_eval_relative_diff.png')
+    plt.savefig(output_path, dpi=300, bbox_inches='tight')
+    print(f"Relative difference plot saved at: {output_path}")
     plt.close()
 
 def main():
     print("Loading Model Eval Data...")
     df = load_eval_data(BASE_DIR)
-    
     if not df.empty:
         print(f"Data points found: {len(df)}")
-        print("Models found:", df['Model'].unique())
-        print("Tasks found:", df['Task'].unique())
-        print("Creating plot...")
         plot_comparison(df)
+        plot_relative_comparison(df)
     else:
-        print("Could not extract any data. Please check if 'results_*.json' files exist in subfolders of model_eval_results.")
+        print("No data found.")
 
 if __name__ == "__main__":
     main()
