@@ -33,7 +33,7 @@ MODEL_LIST = [
     "pythia-12b-duped-step143000-fp4bit",
     "pythia-12b-duped-step143000-nf4bit"
 ]
-CONTEXT_TOKEN_POSITION = "end_of_sequence"  # Where the target tokens are located in the sequence ("start_of_sequence" or "end_of_sequence")
+CONTEXT_TOKEN_POSITION = "start_of_sequence"  # Where the target tokens are located in the sequence ("start_of_sequence" or "end_of_sequence")
 DEVICE = "cuda:0"          # GPU device to use
 EVAL_TOKEN_COUNT = 16      # How many tokens the model should generate (the target continuation length)
 K_STEP_SIZE = 4            # Step size for the loop over 'k' (context length)
