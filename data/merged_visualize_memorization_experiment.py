@@ -7,8 +7,8 @@ import matplotlib.colors as mcolors
 
 # --- Configuration ---
 INPUT_DIR = "/Users/benedict/UHH/bbq/data/experiment_data"
-FILE_END = "mem_eval_pythia-12b-duped-step143000_plus_3_others_k4-48_end_of_sequence_18122025_1314.jsonl"
-FILE_START = "mem_eval_pythia-12b-duped-step143000_plus_3_others_k4-48_start_of_sequence_18122025_0153.jsonl"
+FILE_END = "mem_eval_pythia-12b-duped-step143000_plus_3_others_k4-48_end_of_sequence_21122025_1425.jsonl"
+FILE_START = "mem_eval_pythia-12b-duped-step143000_plus_3_others_k4-48_start_of_sequence_22122025_1740.jsonl"
 
 OUTPUT_DIR = "plots"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
