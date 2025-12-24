@@ -34,7 +34,6 @@ MODEL_LIST = [
     "pythia-12b-duped-step143000-fp4bit",
     "pythia-12b-duped-step143000-nf4bit"
 ]
-CONTEXT_TOKEN_POSITION = "end_of_sequence"  # Where the target tokens are located in the sequence ("start_of_sequence" or "end_of_sequence")
 DEVICE = "cuda:0"          # GPU device to use
 K = 32                     # context length (k) to test
 EVAL_TOKEN_COUNT = 32      # Number of tokens to evaluate the model on (the target length)
@@ -217,6 +216,8 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
 
     # Calculate distribution: Index i represents how many samples had exactly i correct tokens
     token_distribution = np.bincount(correct_counts, minlength=EVAL_TOKEN_COUNT + 1).tolist()
+    # Calculate distribution: Index i represents how many samples had exactly i successive correct tokens
+    successive_token_distribution = np.bincount(successive_counts, minlength=EVAL_TOKEN_COUNT + 1).tolist()
 
     # --- System Info Gathering ---
     gpu_details = []
@@ -229,7 +230,6 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
     results = {
         "model_name": model_name,
         "k": k,
-        "context_token_position": CONTEXT_TOKEN_POSITION,
         "sample_size": sample_size,
         "random_seed": RANDOM_SEED,
         "overall_accuracy": round(overall_accuracy, 4),
@@ -242,6 +242,7 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
 
         "exact_match_percentage": round(exact_match_percentage, 4),
         "correct_token_distribution": token_distribution,
+        "successive_token_distribution": successive_token_distribution,
         "runtime_seconds": round(runtime, 4),
         
         # Memory Stats 
