@@ -9,7 +9,8 @@ import os
 SPLIT_NUMBER = 123000
 
 # Construct the split name dynamically (e.g., "duped.12b.123000")
-TARGET_SPLIT = f"duped.12b.{SPLIT_NUMBER}"
+# TARGET_SPLIT = f"duped.12b.{SPLIT_NUMBER}"
+TARGET_SPLIT = f"deduped.12b.{SPLIT_NUMBER}"
 
 # Base path for your cache
 BASE_CACHE_DIR = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"

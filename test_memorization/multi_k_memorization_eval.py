@@ -28,12 +28,18 @@ MODEL_BASE_DIR = "/home/bstahl/bbq/models"
 
 # List of specific model folder names inside 'MODEL_BASE_DIR' to evaluate
 MODEL_LIST = [
-    "pythia-12b-duped-step143000",
-    "pythia-12b-duped-step143000-8bit",
-    "pythia-12b-duped-step143000-fp4bit",
-    "pythia-12b-duped-step143000-nf4bit"
+    "pythia-12b-deduped-step143000",
+    "pythia-12b-deduped-step143000-8bit",
+    "pythia-12b-deduped-step143000-fp4bit",
+    "pythia-12b-deduped-step143000-nf4bit"
 ]
-CONTEXT_TOKEN_POSITION = "start_of_sequence"  # Where the target tokens are located in the sequence ("start_of_sequence" or "end_of_sequence")
+
+# Dataset Configuration
+DATASET_ID = "EleutherAI/pythia-memorized-evals"
+DATASET_SPLIT = "deduped.12b"  # Change to "duped.12b" if testing standard models
+DATASET_CACHE = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
+
+CONTEXT_TOKEN_POSITION = "end_of_sequence"  # Where the target tokens are located in the sequence ("start_of_sequence" or "end_of_sequence")
 DEVICE = "cuda:0"          # GPU device to use
 EVAL_TOKEN_COUNT = 16      # How many tokens the model should generate (the target continuation length)
 K_STEP_SIZE = 4            # Step size for the loop over 'k' (context length)
@@ -70,15 +76,14 @@ def generate_filename():
 
 def load_eval_dataset():
     """
-    Loads the specific 'duped.12b' split from the memorized-evals dataset.
-    This dataset contains sequences known to be duplicated in the training data.
+    Loads the dataset and split specified in the configuration.
     """
     dataset = load_dataset(
-        "EleutherAI/pythia-memorized-evals",
-        split="duped.12b",
-        cache_dir="/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
+        DATASET_ID,
+        split=DATASET_SPLIT,
+        cache_dir=DATASET_CACHE
         )
-    print(f"Loaded evaluation dataset with {len(dataset)} examples.")
+    print(f"Loaded evaluation dataset '{DATASET_ID}' (split: {DATASET_SPLIT}) with {len(dataset)} examples.")
     return dataset
 
 
@@ -88,9 +93,8 @@ def setup_model_and_tokenizer(model_path, device):
     """
     print(f"Loading model from: {model_path}...")
     
-    # Load model in float16 to save memory, mapped to the specified device
-    # Note: Quantized models (bitsandbytes) usually require load_in_8bit=True etc., 
-    # but assuming these are pre-saved quantized checkpoints or handled via config.
+    # Removed explicit dtype=torch.float16 to allow bitsandbytes config to 
+    # load 4-bit/8-bit weights correctly. Added low_cpu_mem_usage for stability.
     model = GPTNeoXForCausalLM.from_pretrained(
         model_path,
         dtype=torch.float16,        

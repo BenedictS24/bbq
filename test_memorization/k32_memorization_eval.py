@@ -28,12 +28,24 @@ specific training data. It does this by:
 MODEL_BASE_DIR = "/home/bstahl/bbq/models" 
 
 # List of specific model folder names inside 'MODEL_BASE_DIR' to evaluate
+# MODEL_LIST = [
+#     "pythia-12b-duped-step143000",
+#     "pythia-12b-duped-step143000-8bit",
+#     "pythia-12b-duped-step143000-fp4bit",
+#     "pythia-12b-duped-step143000-nf4bit"
+# ]
 MODEL_LIST = [
-    "pythia-12b-duped-step143000",
-    "pythia-12b-duped-step143000-8bit",
-    "pythia-12b-duped-step143000-fp4bit",
-    "pythia-12b-duped-step143000-nf4bit"
+    "pythia-12b-deduped-step143000",
+    "pythia-12b-deduped-step143000-8bit",
+    "pythia-12b-deduped-step143000-fp4bit",
+    "pythia-12b-deduped-step143000-nf4bit"
 ]
+
+# Dataset Configuration
+DATASET_ID = "EleutherAI/pythia-memorized-evals"
+DATASET_SPLIT = "deduped.12b"  # Change to "duped.12b" if testing standard models
+DATASET_CACHE = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
+
 DEVICE = "cuda:0"          # GPU device to use
 K = 32                     # context length (k) to test
 EVAL_TOKEN_COUNT = 32      # Number of tokens to evaluate the model on (the target length)
@@ -68,16 +80,16 @@ def generate_filename():
 
 def load_eval_dataset():
     """
-    Loads the specific 'duped.12b' split from the memorized-evals dataset.
-    This dataset contains sequences known to be duplicated in the training data.
+    Loads the dataset and split specified in the configuration.
     """
     dataset = load_dataset(
-        "EleutherAI/pythia-memorized-evals",
-        split="duped.12b",
-        cache_dir="/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
+        DATASET_ID,
+        split=DATASET_SPLIT,
+        cache_dir=DATASET_CACHE
         )
-    print(f"Loaded evaluation dataset with {len(dataset)} examples.")
+    print(f"Loaded evaluation dataset '{DATASET_ID}' (split: {DATASET_SPLIT}) with {len(dataset)} examples.")
     return dataset
+
 
 
 def setup_model_and_tokenizer(model_path, device):
