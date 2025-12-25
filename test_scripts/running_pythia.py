@@ -1,7 +1,6 @@
 from transformers import GPTNeoXForCausalLM, AutoTokenizer
 import torch
 
-
 use_quantized_model = False 
 
 if use_quantized_model:
@@ -11,7 +10,6 @@ else:
 
 prompt = "Hello, my name is"
 device = "cuda:0"
-
 
 model = GPTNeoXForCausalLM.from_pretrained(
     model_name,

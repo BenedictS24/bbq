@@ -11,20 +11,7 @@ import gc
 from rich.console import Console
 from rich.table import Table
 from rich import box
-"""
-Memorization Evaluation Script
 
-This script evaluates how well a list of Language Models (LLMs) have memorized 
-specific training data. It does this by:
-1. Loading a dataset of known "memorized" examples.
-2. Prompting the model with the first part of a sequence (context).
-3. Checking if the model can exactly reproduce the second part (continuation).
-4. Saving detailed statistics (accuracy, exact match, successive tokens, distribution) 
-   AND memory usage (VRAM footprint, Peak Usage) to a JSONL file.
-"""
-
-# --- CONFIGURATION ---
-# Directory containing your model checkpoints
 MODEL_BASE_DIR = "/home/bstahl/bbq/models" 
 
 # List of specific model folder names inside 'MODEL_BASE_DIR' to evaluate
@@ -41,7 +28,6 @@ MODEL_LIST = [
     "pythia-12b-deduped-step143000-nf4bit"
 ]
 
-# Dataset Configuration
 DATASET_ID = "EleutherAI/pythia-memorized-evals"
 DATASET_SPLIT = "deduped.12b"  # Change to "duped.12b" if testing standard models
 DATASET_CACHE = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
@@ -58,20 +44,13 @@ RANDOM_SEED = 42         # For reproducibility
 # --- Helper Functions ---
 
 def generate_filename():
-    """
-    Generates an abbreviated filename: 
-    memorization_eval + [FirstModelName] + [Count] + [k-range] + [position] + [timestamp]
-    """
     timestamp = datetime.now().strftime("%d%m%Y_%H%M")
     
-    # Get the name of the first model and count the rest
     first_model = MODEL_LIST[0].split('/')[-1]
     model_count = len(MODEL_LIST)
     
-    # Abbreviated model info
     model_info = f"{first_model}_plus_{model_count-1}_others" if model_count > 1 else first_model
     
-    # Construct the final string
     filename = (
         f"mem_eval_{model_info}_k{K}_{NUMBER_OF_TESTS}_"
         f"{timestamp}.jsonl"
@@ -79,9 +58,6 @@ def generate_filename():
     return os.path.join(SAVE_DIR, filename)
 
 def load_eval_dataset():
-    """
-    Loads the dataset and split specified in the configuration.
-    """
     dataset = load_dataset(
         DATASET_ID,
         split=DATASET_SPLIT,
@@ -90,17 +66,9 @@ def load_eval_dataset():
     print(f"Loaded evaluation dataset '{DATASET_ID}' (split: {DATASET_SPLIT}) with {len(dataset)} examples.")
     return dataset
 
-
-
 def setup_model_and_tokenizer(model_path, device):
-    """
-    Loads the model and tokenizer from the specific path provided.
-    """
     print(f"Loading model from: {model_path}...")
     
-    # Load model in float16 to save memory, mapped to the specified device
-    # Note: Quantized models (bitsandbytes) usually require load_in_8bit=True etc., 
-    # but assuming these are pre-saved quantized checkpoints or handled via config.
     model = GPTNeoXForCausalLM.from_pretrained(
         model_path,
         dtype=torch.float16,        
@@ -115,16 +83,7 @@ def setup_model_and_tokenizer(model_path, device):
     
     return model, tokenizer
 
-
 def evaluate_output(output_tokens, expected_tokens):
-    """
-    Compares the generated tokens against the expected ground truth.
-    Returns:
-      - accuracy: Percentage of tokens that matched position-wise.
-      - exact_match: Boolean, True only if 100% of tokens matched.
-      - successive_correct: Count of correct tokens from the start before the first error.
-      - correct: The raw count of correct tokens (position-wise).
-    """
     correct = 0
     successive_correct = 0
     mismatch_found = False
@@ -134,11 +93,9 @@ def evaluate_output(output_tokens, expected_tokens):
     if total == 0:
         return 0.0, False, 0, 0
     
-    # Pair up the generated token with the expected token
     for out_token, exp_token in zip(output_tokens, expected_tokens):
         if out_token == exp_token:
             correct += 1
-            # Count how long the model stays on track from the very beginning
             if not mismatch_found:
                 successive_correct += 1
         else:
@@ -150,27 +107,15 @@ def evaluate_output(output_tokens, expected_tokens):
     
     return accuracy, exact_match, successive_correct, correct
 
-
 def test_memorization(test_sequence, k, model, tokenizer):
-    """
-    Splits a sequence into a prompt (length k) and a target (expected result).
-    Feeds the prompt to the model and compares the output.
-    """
-
-    # The Prompt: The first 'k' tokens of the sequence
     separation_index = k
-    # The Prompt
     prompt_tokens = test_sequence[:separation_index]
-    # The Target
     expected_tokens = test_sequence[separation_index:separation_index + EVAL_TOKEN_COUNT]
 
-    
     input_tokens = torch.tensor([prompt_tokens]).to(DEVICE)
     
-    # Create a mask of 1s (keep all tokens) with the same shape as input_tokens
     attention_mask = torch.ones_like(input_tokens).to(DEVICE)
 
-    # Generate the continuation (inference)
     with torch.no_grad():
         output = model.generate(
             input_ids = input_tokens, 
@@ -182,22 +127,16 @@ def test_memorization(test_sequence, k, model, tokenizer):
 
     full_output_tokens = output[0].tolist()
     
-    # Slice the output to get only the NEW tokens generated by the model
     output_tokens = full_output_tokens[len(prompt_tokens):]
 
     return evaluate_output(output_tokens, expected_tokens)
 
-
 def run_inference_loop(dataset, k, model, tokenizer):
-    """
-    Iterates through the dataset and collects raw stats for a specific 'k'.
-    """
     accuracies = []
     successive_counts = []
-    correct_counts = []  # Store raw count of correct tokens per sample
+    correct_counts = []  
     exact_matches = 0
 
-    # tqdm provides a progress bar for the loop
     for sample in tqdm(dataset, leave=False, desc=f"Evaluating k={k}"):
         tokens = sample["tokens"]
         accuracy, exact_match, successive, correct_count = test_memorization(tokens, k, model, tokenizer)
@@ -211,14 +150,11 @@ def run_inference_loop(dataset, k, model, tokenizer):
             
     return accuracies, successive_counts, exact_matches, correct_counts
 
-
 def compile_results(accuracies, successive_counts, exact_matches, correct_counts, runtime, 
                     model_name, k, sample_size, model_footprint_byte, peak_memory_byte):
-    """Calculates averages, formats the results dictionary, and gathers system info."""
     overall_accuracy = sum(accuracies) / len(accuracies)
     average_successive_correct = sum(successive_counts) / len(successive_counts)
     
-    # Standard Deviations
     accuracy_standard_deviation = np.std(accuracies)
     successive_correct_standard_deviation = np.std(successive_counts)
     
@@ -226,12 +162,9 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
     timestamp = datetime.now().strftime("%d%m%Y_%H%M%S")
     exact_match_percentage = exact_matches / sample_size
 
-    # Calculate distribution: Index i represents how many samples had exactly i correct tokens
     token_distribution = np.bincount(correct_counts, minlength=EVAL_TOKEN_COUNT + 1).tolist()
-    # Calculate distribution: Index i represents how many samples had exactly i successive correct tokens
     successive_token_distribution = np.bincount(successive_counts, minlength=EVAL_TOKEN_COUNT + 1).tolist()
 
-    # --- System Info Gathering ---
     gpu_details = []
     if torch.cuda.is_available():
         for i in range(torch.cuda.device_count()):
@@ -248,7 +181,6 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
         "average_correct_tokens": round(average_correct_tokens, 4),
         "average_successive_correct_tokens": round(average_successive_correct, 4),
         
-        # Deviations
         "accuracy_standard_deviation": round(accuracy_standard_deviation, 4),
         "successive_correct_standard_deviation": round(successive_correct_standard_deviation, 4),
 
@@ -257,12 +189,10 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
         "successive_token_distribution": successive_token_distribution,
         "runtime_seconds": round(runtime, 4),
         
-        # Memory Stats 
         "model_footprint_byte": int(model_footprint_byte),
         "peak_gpu_memory_byte": int(peak_memory_byte),
 
         "timestamp": timestamp,
-        # System Metadata
         "torch_version": torch.__version__,
         "cuda_version": torch.version.cuda,
         "gpu_count": torch.cuda.device_count(),
@@ -270,20 +200,15 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
     }
     return results
 
-
 def save_results_to_json(results, filename):
-    # Ensure the directory exists before writing; avoids "FileNotFoundError"
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     
-    # Append ("a") to the file so we don't overwrite previous results
     with open(filename, "a") as f:
         f.write(json.dumps(results) + "\n")
-
 
 def print_summary(results):
     console = Console()
     
-    # Create a single, compact table
     table = Table(
         title=f"[bold blue]Results: {results['model_name']}[/bold blue]", 
         box=box.SIMPLE_HEAD,
@@ -293,41 +218,31 @@ def print_summary(results):
     table.add_column("Metric", style="cyan")
     table.add_column("Value", justify="right", style="green")
 
-    # Grouped Rows
     table.add_row("Accuracy", f"{results['overall_accuracy']:.2%} (±{results['accuracy_standard_deviation']:.3f})")
     table.add_row("Successive Tokens", f"{results['average_successive_correct_tokens']:.2f}")
     table.add_row("Exact Match", f"{results['exact_match_percentage']:.1%}")
     
-    table.add_section() # Adds a divider line
+    table.add_section() 
     
-    # Resource Usage
     to_gb = lambda b: b / (1024**3)
     table.add_row("Peak VRAM", f"{to_gb(results['peak_gpu_memory_byte']):.2f} GB")
     table.add_row("Runtime", f"{results['runtime_seconds']:.1f}s")
 
     console.print(table)
 
-
-# --- Main Logic ---
-
 def main(model_name, k):
-    # Construct the full path by joining the base dir and the specific model folder
     full_model_path = os.path.join(MODEL_BASE_DIR, model_name)
 
-    # 1. Setup Resources
     model, tokenizer = setup_model_and_tokenizer(full_model_path, DEVICE)
     
     # https://huggingface.co/docs/transformers/en/main_classes/model
-    # get_memory_footprint() returns bytes. Convert to GB.
     model_footprint_byte = model.get_memory_footprint()
 
-    # 2. Run Inference
     print(f"Starting evaluation for model: {model_name} | k={k}...")
     
-    # Reset Peak Memory Tracking
     if torch.cuda.is_available():
         torch.cuda.reset_peak_memory_stats(DEVICE)
-        torch.cuda.empty_cache() # Clean cache to get accurate peak reading for this run
+        torch.cuda.empty_cache() 
 
     start_time = time.time()
     
@@ -335,39 +250,31 @@ def main(model_name, k):
     
     runtime = time.time() - start_time
 
-    # Capture Peak Memory
     peak_memory_byte = 0.0
     if torch.cuda.is_available():
-        # max_memory_allocated returns the peak memory used by tensors since the last reset
         peak_memory_byte = torch.cuda.max_memory_allocated(DEVICE)
 
-    # 4. Process Results
     results = compile_results(
         accuracies, successive_counts, exact_matches, correct_counts,
         runtime, model_name, k, NUMBER_OF_TESTS,
         model_footprint_byte, peak_memory_byte
     )
 
-    # 5. Save & Print
     if SAVE_RESULTS_TO_FILE:
         save_results_to_json(results, SAVE_FILENAME)
     print_summary(results)
 
     # https://discuss.pytorch.org/t/cuda-memory-not-released-by-torch-cuda-empty-cache/129913 
-    # Delete model and clear cache to free memory for the next iteration/model
     del model
     del tokenizer
     gc.collect()
     torch.cuda.empty_cache()
-
 
 if __name__ == "__main__":
     SAVE_FILENAME = generate_filename()
     
     dataset = load_eval_dataset()
     dataset_subset = dataset.shuffle(seed=RANDOM_SEED).select(range(NUMBER_OF_TESTS))
-    # Validate that the sequence length math works out
-    # Outer Loop: Iterate through every model in the configuration list
     for model_name in MODEL_LIST:
         print(f"\n{'#'*30}")
         print(f"PROCESSING MODEL: {model_name}")

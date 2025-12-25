@@ -3,26 +3,16 @@ from transformers import GPTNeoXForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
 # https://huggingface.co/docs/transformers/v5.0.0rc0/en/main_classes/quantization#transformers.BitsAndBytesConfig
 
-# --- CONFIGURATION ---
-# 1. Choose quantization mode: "nf4bit", "fp4bit", or "8bit"
 QUANT_MODE = "fp4bit"
 
-# 2. The specific model folder you want to quantize
-# MODEL_NAME = "pythia-12b-duped-step143000"
 MODEL_NAME = "pythia-12b-deduped-step143000"
 
-# 3. The base directory where all your models are stored
 MODELS_PATH = "/home/bstahl/bbq/models"
 
-
-# --- PATH CONSTRUCTION ---
-# Full path to the input model
 LOCAL_PATH = f"{MODELS_PATH}/{MODEL_NAME}"
 
-# Full path for the output (saves it back into the models folder)
 OUTPUT_DIR = f"{MODELS_PATH}/{MODEL_NAME}-{QUANT_MODE}"
 
-# --- SETUP ---
 print(f"Configuring for {QUANT_MODE} quantization...")
 
 if QUANT_MODE == "nf4bit":
@@ -47,8 +37,6 @@ elif QUANT_MODE == "8bit":
 else:
     raise ValueError("QUANT_MODE must be 'nf4bit', 'fp4bit', or '8bit'")
 
-
-# --- EXECUTION ---
 print(f"Loading model from: {LOCAL_PATH}")
 model = GPTNeoXForCausalLM.from_pretrained(
     LOCAL_PATH,
@@ -59,7 +47,6 @@ model = GPTNeoXForCausalLM.from_pretrained(
 print(f"Saving quantized model to: {OUTPUT_DIR}")
 model.save_pretrained(OUTPUT_DIR)
 
-# Load tokenizer directly from local path
 print(f"Loading tokenizer from: {LOCAL_PATH}")
 tokenizer = AutoTokenizer.from_pretrained(LOCAL_PATH)
 tokenizer.save_pretrained(OUTPUT_DIR)

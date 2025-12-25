@@ -3,23 +3,17 @@ import os
 
 # https://huggingface.co/datasets/EleutherAI/pythia-memorized-evals/viewer/default/duped.12b.123000?views[]=duped12b123000
 
-# 1. Configuration
-# Set the specific split number you want (e.g., 23000, 123000).
-# Note: Check the Hugging Face viewer to ensure the specific split exists.
 SPLIT_NUMBER = 123000
 
-# Construct the split name dynamically (e.g., "duped.12b.123000")
 # TARGET_SPLIT = f"duped.12b.{SPLIT_NUMBER}"
 TARGET_SPLIT = f"deduped.12b.{SPLIT_NUMBER}"
 
-# Base path for your cache
 BASE_CACHE_DIR = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
 
 print(f"--- Loading Dataset ---")
 print(f"Dataset: EleutherAI/pythia-memorized-evals")
 print(f"Split: {TARGET_SPLIT}")
 
-# 2. Load the dataset
 try:
     dataset = load_dataset(
         "EleutherAI/pythia-memorized-evals",
