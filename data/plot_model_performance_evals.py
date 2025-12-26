@@ -32,13 +32,19 @@ METRICS_CONFIG = {
 def clean_model_label(folder_name):
     # 1. Remove date/timestamp (matches _DD-MM-YYYY...)
     name = re.split(r'_\d{2}-\d{2}-\d{4}', folder_name)[0]
+    
     # 2. Remove "step..."
     name = re.sub(r'-step\d+', '', name)
-    # 3. Replace base name
-    if "pythia-12b-duped" in name:
-        name = name.replace("pythia-12b-duped", "Pythia 12B Deduped")
-    # 4. Replace hyphens with spaces
+    
+    # 3. Corrected replacement: use "deduped" (with an 'e') 
+    # and ensure it matches the palette's capitalization
+    if "pythia-12b-deduped" in name:
+        name = name.replace("pythia-12b-deduped", "Pythia 12B Deduped")
+    
+    # 4. Replace remaining hyphens (like the one before '8bit') with spaces
     name = name.replace("-", " ")
+    
+    # Clean up any double spaces and trim
     return re.sub(r'\s+', ' ', name).strip()
 
 def load_eval_data(base_dir):
