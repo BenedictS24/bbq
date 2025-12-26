@@ -4,13 +4,10 @@ from transformers import GPTNeoXForCausalLM, AutoTokenizer, BitsAndBytesConfig
 # https://huggingface.co/docs/transformers/v5.0.0rc0/en/main_classes/quantization#transformers.BitsAndBytesConfig
 
 QUANT_MODE = "fp4bit"
-
 MODEL_NAME = "pythia-12b-deduped-step143000"
-
 MODELS_PATH = "/home/bstahl/bbq/models"
 
 LOCAL_PATH = f"{MODELS_PATH}/{MODEL_NAME}"
-
 OUTPUT_DIR = f"{MODELS_PATH}/{MODEL_NAME}-{QUANT_MODE}"
 
 print(f"Configuring for {QUANT_MODE} quantization...")

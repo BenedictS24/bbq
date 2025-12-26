@@ -4,10 +4,8 @@ import os
 # https://huggingface.co/datasets/EleutherAI/pythia-memorized-evals/viewer/default/duped.12b.123000?views[]=duped12b123000
 
 SPLIT_NUMBER = 123000
-
 # TARGET_SPLIT = f"duped.12b.{SPLIT_NUMBER}"
 TARGET_SPLIT = f"deduped.12b.{SPLIT_NUMBER}"
-
 BASE_CACHE_DIR = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
 
 print(f"--- Loading Dataset ---")

@@ -13,8 +13,6 @@ from rich.table import Table
 from rich import box
 
 MODEL_BASE_DIR = "/home/bstahl/bbq/models" 
-
-# List of specific model folder names inside 'MODEL_BASE_DIR' to evaluate
 # MODEL_LIST = [
 #     "pythia-12b-duped-step143000",
 #     "pythia-12b-duped-step143000-8bit",
@@ -27,7 +25,6 @@ MODEL_LIST = [
     "pythia-12b-deduped-step143000-fp4bit",
     "pythia-12b-deduped-step143000-nf4bit"
 ]
-
 DATASET_ID = "EleutherAI/pythia-memorized-evals"
 DATASET_SPLIT = "deduped.12b"  # Change to "duped.12b" if testing standard models
 DATASET_CACHE = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
@@ -41,7 +38,6 @@ SAVE_DIR = "/home/bstahl/bbq/data/experiment_data/"
 TEST_SEQUENCE_LENGTH = 64  # Total length of the sample (Context + Target)
 RANDOM_SEED = 42         # For reproducibility
 
-# --- Helper Functions ---
 
 def generate_filename():
     timestamp = datetime.now().strftime("%d%m%Y_%H%M")
@@ -57,6 +53,7 @@ def generate_filename():
     )
     return os.path.join(SAVE_DIR, filename)
 
+
 def load_eval_dataset():
     dataset = load_dataset(
         DATASET_ID,
@@ -65,6 +62,7 @@ def load_eval_dataset():
         )
     print(f"Loaded evaluation dataset '{DATASET_ID}' (split: {DATASET_SPLIT}) with {len(dataset)} examples.")
     return dataset
+
 
 def setup_model_and_tokenizer(model_path, device):
     print(f"Loading model from: {model_path}...")
@@ -82,6 +80,7 @@ def setup_model_and_tokenizer(model_path, device):
     )
     
     return model, tokenizer
+
 
 def evaluate_output(output_tokens, expected_tokens):
     correct = 0
@@ -107,6 +106,7 @@ def evaluate_output(output_tokens, expected_tokens):
     
     return accuracy, exact_match, successive_correct, correct
 
+
 def test_memorization(test_sequence, k, model, tokenizer):
     separation_index = k
     prompt_tokens = test_sequence[:separation_index]
@@ -131,6 +131,7 @@ def test_memorization(test_sequence, k, model, tokenizer):
 
     return evaluate_output(output_tokens, expected_tokens)
 
+
 def run_inference_loop(dataset, k, model, tokenizer):
     accuracies = []
     successive_counts = []
@@ -149,6 +150,7 @@ def run_inference_loop(dataset, k, model, tokenizer):
             exact_matches += 1
             
     return accuracies, successive_counts, exact_matches, correct_counts
+
 
 def compile_results(accuracies, successive_counts, exact_matches, correct_counts, runtime, 
                     model_name, k, sample_size, model_footprint_byte, peak_memory_byte):
@@ -200,11 +202,13 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
     }
     return results
 
+
 def save_results_to_json(results, filename):
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     
     with open(filename, "a") as f:
         f.write(json.dumps(results) + "\n")
+
 
 def print_summary(results):
     console = Console()
@@ -229,6 +233,7 @@ def print_summary(results):
     table.add_row("Runtime", f"{results['runtime_seconds']:.1f}s")
 
     console.print(table)
+
 
 def main(model_name, k):
     full_model_path = os.path.join(MODEL_BASE_DIR, model_name)
@@ -269,6 +274,7 @@ def main(model_name, k):
     del tokenizer
     gc.collect()
     torch.cuda.empty_cache()
+
 
 if __name__ == "__main__":
     SAVE_FILENAME = generate_filename()
