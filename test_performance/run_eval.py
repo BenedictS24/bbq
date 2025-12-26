@@ -27,6 +27,13 @@ def run_evaluation():
             print(f"\n[SKIP] Model path not found: {full_model_path}")
             continue
 
+        # The 8 bit models have a problem with the auto batch size detection
+        # so I set it manually to 3 here - if you still run out of memory, lower it further
+        if "-8bit" in model_name:
+            batch_size = "3"
+        else:
+            batch_size = "auto"
+
         timestamp = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
         
         specific_output_dir = os.path.join(RESULTS_BASE_DIR, f"{model_name}_{timestamp}")
@@ -36,6 +43,7 @@ def run_evaluation():
         print(f"\n=======================================================")
         print(f"Starting: {model_name}")
         print(f"Loading:  {full_model_path}")
+        print(f"Batch Size: {batch_size}")
         print(f"Saving to: {specific_output_dir}")
         print(f"=======================================================")
 
@@ -45,7 +53,7 @@ def run_evaluation():
             "--model_args", f"pretrained={full_model_path},trust_remote_code=true",
             "--tasks", TASKS,
             "--device", "cuda:0",
-            "--batch_size", "auto",
+            "--batch_size", batch_size,
             "--output_path", specific_output_dir,
             "--log_samples"
         ]
