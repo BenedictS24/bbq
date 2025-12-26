@@ -11,14 +11,18 @@ import gc
 from rich.console import Console
 
 MODEL_BASE_DIR = "/home/bstahl/bbq/models" 
-
+# MODEL_LIST = [
+#     "pythia-12b-duped-step143000",
+#     "pythia-12b-duped-step143000-8bit",
+#     "pythia-12b-duped-step143000-fp4bit",
+#     "pythia-12b-duped-step143000-nf4bit"
+# ]
 MODEL_LIST = [
     "pythia-12b-deduped-step143000",
     "pythia-12b-deduped-step143000-8bit",
     "pythia-12b-deduped-step143000-fp4bit",
     "pythia-12b-deduped-step143000-nf4bit"
 ]
-
 DATASET_ID = "EleutherAI/pythia-memorized-evals"
 DATASET_SPLIT = "deduped.12b"  # Change to "duped.12b" if testing standard models
 DATASET_CACHE = "/mnt/storage2/student_data/bstahl/bbq/test_memorization/pythia-12b_memorized-evals"
@@ -27,21 +31,19 @@ CONTEXT_TOKEN_POSITION = "end_of_sequence"  # Where the target tokens are locate
 DEVICE = "cuda:0"          # GPU device to use
 EVAL_TOKEN_COUNT = 16      # How many tokens the model should generate (the target continuation length)
 K_STEP_SIZE = 4            # Step size for the loop over 'k' (context length)
-START_K = 4                # Minimum context length (k) to test
-END_K = 48                 # Maximum context length (k) to test
+START_K = 4               
+END_K = 48                 
 NUMBER_OF_TESTS = 2000     # How many samples from the dataset to evaluate per setting
 SAVE_RESULTS_TO_FILE = True
 SAVE_DIR = "/home/bstahl/bbq/data/experiment_data/"
 TEST_SEQUENCE_LENGTH = 64  # Total length of the sample (Context + Target)
-RANDOM_SEED = 42         # For reproducibility
+RANDOM_SEED = 42         
 
 
 def generate_filename():
     timestamp = datetime.now().strftime("%d%m%Y_%H%M")
-    
     first_model = MODEL_LIST[0].split('/')[-1]
     model_count = len(MODEL_LIST)
-    
     model_info = f"{first_model}_plus_{model_count-1}_others" if model_count > 1 else first_model
     
     filename = (
@@ -49,6 +51,7 @@ def generate_filename():
         f"{CONTEXT_TOKEN_POSITION}_{timestamp}.jsonl"
     )
     return os.path.join(SAVE_DIR, filename)
+
 
 def load_eval_dataset():
     dataset = load_dataset(
@@ -58,6 +61,7 @@ def load_eval_dataset():
         )
     print(f"Loaded evaluation dataset '{DATASET_ID}' (split: {DATASET_SPLIT}) with {len(dataset)} examples.")
     return dataset
+
 
 def setup_model_and_tokenizer(model_path, device):
     print(f"Loading model from: {model_path}...")
@@ -75,6 +79,7 @@ def setup_model_and_tokenizer(model_path, device):
     )
     
     return model, tokenizer
+
 
 def evaluate_output(output_tokens, expected_tokens):
     correct = 0
@@ -99,6 +104,7 @@ def evaluate_output(output_tokens, expected_tokens):
         exact_match = True
     
     return accuracy, exact_match, successive_correct, correct
+
 
 def test_memorization(test_sequence, k, model, tokenizer):
     if CONTEXT_TOKEN_POSITION == "end_of_sequence": 
@@ -133,6 +139,7 @@ def test_memorization(test_sequence, k, model, tokenizer):
 
     return evaluate_output(output_tokens, expected_tokens)
 
+
 def run_inference_loop(dataset, k, model, tokenizer):
     accuracies = []
     successive_counts = []
@@ -151,6 +158,7 @@ def run_inference_loop(dataset, k, model, tokenizer):
             exact_matches += 1
             
     return accuracies, successive_counts, exact_matches, correct_counts
+
 
 def compile_results(accuracies, successive_counts, exact_matches, correct_counts, runtime, 
                     model_name, k, sample_size, model_footprint_byte, peak_memory_byte):
@@ -199,11 +207,13 @@ def compile_results(accuracies, successive_counts, exact_matches, correct_counts
     }
     return results
 
+
 def save_results_to_json(results, filename):
     os.makedirs(os.path.dirname(filename), exist_ok=True)
     
     with open(filename, "a") as f:
         f.write(json.dumps(results) + "\n")
+
 
 def print_summary(results):
     console = Console()
@@ -211,22 +221,20 @@ def print_summary(results):
 
     console.print("-" * 40, style="dim")
     console.print(f"[bold cyan]{results['model_name']}[/] (k={results['k']}, n={results['sample_size']})")
-    
     console.print(f"Accuracy:   [bold green]{results['overall_accuracy']:.4f}[/] [dim]±{results['accuracy_standard_deviation']:.3f}[/]")
     console.print(f"Successive: [bold blue]{results['average_successive_correct_tokens']:.4f}[/] [dim]±{results['successive_correct_standard_deviation']:.3f}[/]")
-    
     console.print(f"VRAM Peak:  [bold yellow]{gb(results['peak_gpu_memory_byte']):.2f} GB[/]")
     console.print(f"Runtime:    [bold magenta]{results['runtime_seconds']:.2f}s[/]")
-    
     console.print(f"[dim]Dist: {results['correct_token_distribution']}[/]")
     console.print("-" * 40, style="dim")    
+
 
 def main(model_name, k):
     full_model_path = os.path.join(MODEL_BASE_DIR, model_name)
 
     model, tokenizer = setup_model_and_tokenizer(full_model_path, DEVICE)
     
-    # https://huggingface.co/docs/transformers/en/main_classes/model
+    # https://huggingface.co/docs/transformers/en/main_classes/model#transformers.PreTrainedModel.get_memory_footprint
     model_footprint_byte = model.get_memory_footprint()
 
     print(f"Starting evaluation for model: {model_name} | k={k}...")
@@ -260,6 +268,7 @@ def main(model_name, k):
     del tokenizer
     gc.collect()
     torch.cuda.empty_cache()
+
 
 if __name__ == "__main__":
     SAVE_FILENAME = generate_filename()

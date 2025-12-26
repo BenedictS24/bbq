@@ -5,9 +5,7 @@ from datetime import datetime
 # https://github.com/EleutherAI/lm-evaluation-harness
 
 MODEL_BASE_DIR = "/home/bstahl/bbq/models"
-
 RESULTS_BASE_DIR = "/home/bstahl/bbq/data/model_eval_results"
-
 MODEL_LIST = [
     "pythia-12b-deduped-step143000",
     "pythia-12b-deduped-step143000-8bit",
@@ -15,10 +13,10 @@ MODEL_LIST = [
     "pythia-12b-deduped-step143000-nf4bit"
 ]
 
-# https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/tasks/README.md
-# https://huggingface.co/docs/leaderboards/en/open_llm_leaderboard/archive 
-
+# List of possible tasks: https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/tasks/README.md
+# Reason for task selection: https://huggingface.co/docs/leaderboards/en/open_llm_leaderboard/archive 
 TASKS = "arc_challenge,hellaswag,mmlu,truthfulqa_mc1,winogrande,gsm8k"
+
 
 def run_evaluation():
     
@@ -57,6 +55,7 @@ def run_evaluation():
             print(f"DONE: Results saved in {specific_output_dir}")
         except subprocess.CalledProcessError:
             print(f"ERROR: Failed to evaluate {model_name}")
+
 
 if __name__ == "__main__":
     run_evaluation()
