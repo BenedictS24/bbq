@@ -12,7 +12,7 @@ MODEL_LIST = [
     "pythia-12b-deduped-step143000-fp4bit",
     "pythia-12b-deduped-step143000-nf4bit"
 ]
-
+# Reason for task selection: https://huggingface.co/docs/leaderboards/en/open_llm_leaderboard/archive
 # List of possible tasks: https://github.com/EleutherAI/lm-evaluation-harness/blob/main/lm_eval/tasks/README.md
 TASKS = "arc_challenge,hellaswag,mmlu,truthfulqa_mc1,winogrande,gsm8k"
 
