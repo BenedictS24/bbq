@@ -7,7 +7,7 @@ import numpy as np
 
 # --- Configuration ---
 INPUT_DIR = "/Users/benedict/UHH/bbq/data/experiment_data"
-INPUT_FILE = "mem_eval_pythia-12b-duped-step143000_plus_3_others_k32_6000_24122025_1335.jsonl"
+INPUT_FILE = "mem_eval_pythia-12b-deduped-step143000_plus_3_others_k32_6000_26122025_2102.jsonl"
 FILE_PATH = os.path.join(INPUT_DIR, INPUT_FILE)
 
 OUTPUT_DIR = "plots"
